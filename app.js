@@ -337,6 +337,7 @@ async function reserve(activityId) {
       transaction.update(activityRef, { spots_remaining: data.spots_remaining - 1 });
       transaction.set(doc(reservationsRef), {
         userId: user.uid,
+        userEmail: user.email,
         activityId,
         createdAt: new Date()
       });
