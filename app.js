@@ -80,3 +80,30 @@ if (createBtn) {
     alert("Activity created");
   });
 }
+
+import { getDocs, collection, updateDoc, doc } 
+from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+async function loadActivities() {
+  const container = document.getElementById("activitiesContainer");
+  if (!container) return;
+
+  const querySnapshot = await getDocs(collection(db, "activities"));
+
+  querySnapshot.forEach((docSnap) => {
+    const data = docSnap.data();
+
+    if (data.visible && data.spots_remaining > 0) {
+      const div = document.createElement("div");
+      div.innerHTML = `
+        <h3>${data.title}</h3>
+        <p>${data.date}</p>
+        <p>Spots left: ${data.spots_remaining}</p>
+        <button onclick="reserve('${docSnap.id}')">Reserve</button>
+      `;
+      container.appendChild(div);
+    }
+  });
+}
+
+loadActivities();
