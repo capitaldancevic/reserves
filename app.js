@@ -47,25 +47,40 @@ const db = getFirestore(app);
 // AUTH PROTECTION
 // ==========================
 
+// ACCESS CONTROL
 onAuthStateChanged(auth, async (user) => {
-  const path = window.location.pathname;
-
-  // Si no està loguejat i és dashboard/admin → redirect
   if (!user) {
-    if (path.includes("dashboard") || path.includes("admin")) {
+    if (window.location.pathname.includes("dashboard") ||
+        window.location.pathname.includes("admin")) {
       window.location.href = "index.html";
     }
-  }
+  } else {
+    // Comprovem rol
+    const userDoc = await getDoc(doc(db, "users", user.uid));
+    if (!userDoc.exists()) return;
 
-  // Si està loguejat i és admin.html → comprovar rol
-  if (user && path.includes("admin")) {
-    const docSnap = await getDoc(doc(db, "users", user.uid));
-    if (!docSnap.exists() || docSnap.data().role !== "admin") {
-      alert("No tens permisos per entrar aquí");
-      window.location.href = "index.html";
+    const role = userDoc.data().role;
+
+    if (window.location.pathname.includes("admin") && role !== "admin") {
+      // Usuari normal no pot accedir a admin
+      alert("No tens permisos per accedir a aquesta pàgina");
+      window.location.href = "dashboard.html";
     }
   }
 });
+
+// ==========================
+// LOGOUT
+// ==========================
+
+const logoutBtn = document.getElementById("logoutBtn");
+
+if (logoutBtn) {
+  logoutBtn.addEventListener("click", async () => {
+    await auth.signOut();
+    window.location.href = "index.html";
+  });
+}
 
 // ==========================
 // REGISTER
