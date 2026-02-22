@@ -183,3 +183,75 @@ input:focus {
   }
 }
 
+/* ---------- HEADER PRINCIPAL ---------- */
+
+.main-header {
+  background: linear-gradient(135deg, #cb0076 0%, #e91e77 100%);
+  padding: 1rem;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.15);
+}
+
+.header-content {
+  max-width: 900px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.logo {
+  height: 50px;
+}
+
+.logout-btn {
+  width: auto;
+  padding: 0.6rem 1rem;
+  font-size: 0.9rem;
+}
+
+/* ---------- SUB HEADER ---------- */
+
+.sub-header {
+  background: white;
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  padding: 1rem;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+}
+
+.tab-btn {
+  background: none;
+  border: none;
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 0.6rem 1rem;
+  border-radius: 20px;
+  transition: 0.3s ease;
+}
+
+.tab-btn:hover {
+  background: #f5f5f5;
+}
+
+.tab-btn.active {
+  background: #cb0076;
+  color: white;
+}
+
+/* ---------- ACTIVITIES GRID ---------- */
+
+.activities-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.activity-card {
+  background: white;
+  padding: 1.5rem;
+  border-radius: 12px;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.1);
+}
+
