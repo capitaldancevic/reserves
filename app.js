@@ -107,3 +107,21 @@ async function loadActivities() {
 }
 
 loadActivities();
+
+window.reserve = async function(activityId) {
+  const activityRef = doc(db, "activities", activityId);
+
+  const activitySnap = await getDoc(activityRef);
+  const data = activitySnap.data();
+
+  if (data.spots_remaining <= 0) {
+    alert("No spots left");
+    return;
+  }
+
+  await updateDoc(activityRef, {
+    spots_remaining: data.spots_remaining - 1
+  });
+
+  alert("Reserved!");
+}
