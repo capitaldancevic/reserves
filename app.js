@@ -107,9 +107,22 @@ if (registerBtn) {
       const user = userCredential.user;
 
       // Guardar a Firestore
+      const nom = document.getElementById("registerNom").value;
+      const cognoms = document.getElementById("registerCognoms").value;
+      const escola = document.getElementById("registerEscola").value;
+      
+      if (!nom || !cognoms || !escola) {
+        alert("Omple tots els camps!");
+        return;
+      }
+      
       await setDoc(doc(db, "users", user.uid), {
+        nom,
+        cognoms,
+        escola,
         email,
-        role: "user"
+        role: "user",
+        createdAt: new Date()
       });
 
       alert("Registrat correctament!");
@@ -154,24 +167,32 @@ const createBtn = document.getElementById("createActivity");
 
 if (createBtn) {
   createBtn.addEventListener("click", async () => {
-    const title = document.getElementById("title").value;
-    const date = document.getElementById("date").value;
-    const spots = parseInt(document.getElementById("spots").value);
+    const lloc = document.getElementById("lloc").value;
+const data = document.getElementById("data").value;
+const horari = document.getElementById("horari").value;
+const professor = document.getElementById("professor").value;
+const disciplina = document.getElementById("disciplina").value;
+const nivell = document.getElementById("nivell").value;
+const spots = parseInt(document.getElementById("spots").value);
 
-    if (!title || !date || !spots) {
-      alert("Omple tots els camps!");
-      return;
-    }
+if (!lloc || !data || !horari || !professor || !disciplina || !nivell || !spots) {
+  alert("Omple tots els camps!");
+  return;
+}
 
-    await addDoc(collection(db, "activities"), {
-      title,
-      date: new Date(date),
-      spots_total: spots,
-      spots_remaining: spots,
-      visible: true,
-      type: "master", // o "foto"
-      createdAt: new Date()
-    });
+await addDoc(collection(db, "activities"), {
+  type: "master",
+  lloc,
+  data: new Date(data),
+  horari,
+  professor,
+  disciplina,
+  nivell,
+  spots_total: spots,
+  spots_remaining: spots,
+  visible: true,
+  createdAt: new Date()
+});
 
     alert("Activitat creada correctament!");
   });
@@ -234,9 +255,9 @@ async function loadParticipants() {
       for (const resDoc of reservationsSnap.docs) {
         const resData = resDoc.data();
         const userDoc = await getDoc(doc(db, "users", resData.userId));
-        const userEmail = userDoc.exists() ? userDoc.data().email : "Unknown";
+        const userData = userDoc.data();
         const li = document.createElement("li");
-        li.textContent = userEmail;
+        li.textContent = `${userData.nom} ${userData.cognoms} - ${userData.escola}`;
         ul.appendChild(li);
       }
       div.appendChild(ul);
@@ -452,7 +473,7 @@ async function loadActivitiesByType(type) {
       const data = docSnap.data();
 
       const dateFormatted = new Date(
-        data.date.toDate ? data.date.toDate() : data.date
+        data.date.toDate ? data.date.toDate() : data.data
       ).toLocaleDateString("ca-ES");
 
       const card = document.createElement("div");
