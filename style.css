@@ -362,3 +362,75 @@ input:focus {
   font-size: 0.9rem;
 }
 
+/* ============================= */
+/* HEADER UPGRADE */
+/* ============================= */
+
+.main-header {
+  background: linear-gradient(135deg, #cb0076 0%, #e91e77 100%);
+  padding: 1rem 2rem;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+}
+
+.header-content {
+  max-width: 1300px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.logo {
+  height: 55px;
+}
+
+/* USER AREA */
+
+.user-area {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  color: white;
+}
+
+.user-avatar {
+  width: 36px;
+  height: 36px;
+  background: rgba(255,255,255,0.2);
+  backdrop-filter: blur(6px);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+}
+
+.user-name {
+  font-weight: 600;
+  font-size: 0.95rem;
+  letter-spacing: 0.5px;
+}
+
+/* LOGOUT BUTTON - contrast real */
+
+.logout-btn {
+  background: white;
+  color: #cb0076;
+  border: none;
+  padding: 0.6rem 1.2rem;
+  border-radius: 25px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.3s ease;
+}
+
+.logout-btn:hover {
+  background: rgba(255,255,255,0.85);
+  transform: translateY(-2px);
+}
