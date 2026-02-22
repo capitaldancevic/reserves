@@ -1,13 +1,17 @@
-/* GLOBAL CSS */
+/* ---------- GLOBAL STYLES ---------- */
 
 :root {
   --primary-color: #0F1A2F;
-  --accent-color: #E01758;
-  --bg-color: #F8F8F8;
+  --accent-color: #CB0076;
+  --accent-light: #D81B8A;
+  --bg-color: #FFFFFF;
+  --section-bg: #FAF9FC;
   --text-color: #222222;
+  --text-light: #555555;
   --btn-text: #FFFFFF;
-  --card-bg: #FFFFFF;
-  --shadow: rgba(0, 0, 0, 0.1);
+  --shadow: rgba(0, 0, 0, 0.12);
+  --border-radius: 12px;
+  --transition: 0.35s ease;
 }
 
 * {
@@ -18,99 +22,164 @@
 }
 
 body {
-  background: var(--bg-color);
+  background: var(--section-bg);
   color: var(--text-color);
-  line-height: 1.6;
+  line-height: 1.65;
+  min-height: 100vh;
 }
 
-header.header {
-  background: var(--primary-color);
-  color: var(--btn-text);
-  padding: 1rem;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.container {
-  width: 90%;
-  max-width: 800px;
-  margin: 2rem auto;
-}
+/* ---------- HEADER & GLOBAL TEXT ---------- */
 
 .title {
-  font-size: 2rem;
+  font-size: 2.2rem;
   text-align: center;
-  margin-bottom: 0.5rem;
+  margin: 1.2rem 0 0.4rem 0;
   color: var(--primary-color);
+  letter-spacing: 1px;
 }
 
 .subtitle {
   text-align: center;
-  margin-bottom: 1rem;
-  color: var(--text-color);
-  opacity: 0.8;
+  font-size: 1rem;
+  color: var(--text-light);
+  margin-bottom: 1.5rem;
 }
 
-.card {
-  background: var(--card-bg);
-  padding: 1.5rem;
-  margin-bottom: 1.5rem;
-  box-shadow: 0 2px 8px var(--shadow);
-  border-radius: 8px;
+/* ---------- CONTAINER ---------- */
+
+.container {
+  width: 95%;
+  max-width: 500px;
+  margin: 0 auto;
+  padding: 1rem;
 }
+
+/* ---------- CARD / FORM WRAPPERS ---------- */
+
+.card {
+  background: var(--bg-color);
+  padding: 2rem;
+  margin-bottom: 2rem;
+  border-radius: var(--border-radius);
+  box-shadow: 0 4px 14px var(--shadow);
+  transition: var(--transition);
+  position: relative;
+  overflow: hidden;
+}
+
+.card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 6px 22px var(--shadow);
+}
+
+.form-title {
+  color: var(--primary-color);
+  margin-bottom: 0.8rem;
+  font-size: 1.5rem;
+}
+
+/* ---------- FORM VISIBILITY ---------- */
+
+.form-active {
+  display: block;
+  opacity: 1;
+  transform: translateY(0);
+  transition: var(--transition);
+}
+
+.form-hidden {
+  display: none;
+  opacity: 0;
+  transform: translateY(20px);
+  transition: var(--transition);
+}
+
+/* ---------- INPUT STYLES ---------- */
 
 input {
   width: 100%;
-  padding: 0.8rem;
-  margin-bottom: 1rem;
-  border: 1px solid #ccc;
-  border-radius: 6px;
+  padding: 0.9rem;
+  margin-bottom: 1.2rem;
+  border: 2px solid #ddd;
+  border-radius: var(--border-radius);
   font-size: 1rem;
+  transition: var(--transition);
 }
 
+input:hover {
+  border-color: var(--accent-color);
+}
+
+input:focus {
+  outline: none;
+  border-color: var(--accent-color);
+  box-shadow: 0 0 8px rgba(203, 0, 118, 0.25);
+}
+
+/* ---------- BUTTONS ---------- */
+
 .btn {
-  background: var(--accent-color);
+  width: 100%;
+  display: block;
+  background: linear-gradient(135deg, #cb0076 0%, #e91e77 100%);
   color: var(--btn-text);
   border: none;
-  padding: 0.8rem 1.2rem;
-  font-size: 1rem;
+  padding: 0.95rem;
+  font-size: 1.05rem;
+  font-weight: 600;
   cursor: pointer;
-  border-radius: 6px;
-  transition: 0.3s ease;
+  border-radius: var(--border-radius);
+  box-shadow: 0 4px 14px rgba(203, 0, 118, 0.3);
+  transition: var(--transition);
 }
 
 .btn:hover {
-  background: #C0144D;
+  background: var(--accent-light);
+  box-shadow: 0 6px 20px rgba(203, 0, 118, 0.4);
 }
 
-.btn.small {
-  padding: 0.4rem 0.8rem;
-  font-size: 0.85rem;
-}
+/* ---------- TOGGLE TEXT UNDER FORM ---------- */
 
-/* ACTIVITIES GRID */
-
-.activities-grid {
-  display: grid;
-  gap: 1rem;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-}
-
-.activities-grid div {
-  background: var(--card-bg);
-  border-radius: 8px;
-  padding: 1rem;
-  box-shadow: 0 1px 5px var(--shadow);
-}
-
-.activities-grid h3 {
-  font-size: 1.3rem;
-  color: var(--primary-color);
-  margin-bottom: 0.5rem;
-}
-
-.activities-grid p {
+.toggle-text {
+  text-align: center;
+  margin-top: 1rem;
   font-size: 0.95rem;
-  margin-bottom: 0.4rem;
+  color: var(--text-light);
 }
+
+.toggle-btn {
+  background: none;
+  border: none;
+  color: var(--accent-color);
+  font-weight: 700;
+  cursor: pointer;
+  margin-left: 0.3rem;
+  transition: var(--transition);
+}
+
+.toggle-btn:hover {
+  color: var(--accent-light);
+  text-decoration: underline;
+}
+
+/* ---------- RESPONSIVE SETTINGS ---------- */
+
+@media (max-width: 768px) {
+  .title {
+    font-size: 2rem;
+  }
+  
+  .card {
+    padding: 1.6rem;
+  }
+
+  input {
+    padding: 0.8rem;
+  }
+  
+  .btn {
+    padding: 0.85rem;
+    font-size: 1rem;
+  }
+}
+
