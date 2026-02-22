@@ -52,7 +52,8 @@ onAuthStateChanged(auth, async (user) => {
   if (!user) {
     if (window.location.pathname.includes("dashboard") ||
         window.location.pathname.includes("admin")) {
-      window.location.href = "index.html";
+        window.location.href = "index.html";
+        loadMyReservations();
     }
   } else {
     // Comprovem rol
@@ -347,5 +348,64 @@ async function reserve(activityId) {
     loadActivities();
   } catch (err) {
     alert(err);
+  }
+}
+
+async function loadMyReservations() {
+  const user = auth.currentUser;
+  if (!user) return;
+
+  const container = document.getElementById("myReservations");
+  if (!container) return;
+
+  container.innerHTML = ""; // neteja abans
+
+  const reservationsSnap = await getDocs(
+    query(collection(db, "reservations"), where("userId", "==", user.uid))
+  );
+
+  if (reservationsSnap.empty) {
+    container.innerHTML = "<p>No tens cap reserva.</p>";
+    return;
+  }
+
+  for (const resDoc of reservationsSnap.docs) {
+    const resData = resDoc.data();
+    const activitySnap = await getDoc(doc(db, "activities", resData.activityId));
+    if (!activitySnap.exists()) continue;
+
+    const activity = activitySnap.data();
+
+    // Crear div reserva
+    const div = document.createElement("div");
+    div.style.border = "1px solid #ccc";
+    div.style.padding = "10px";
+    div.style.margin = "10px 0";
+    div.style.borderRadius = "6px";
+
+    div.innerHTML = `
+      <h4>${activity.title}</h4>
+      <p>${new Date(activity.date.toDate ? activity.date.toDate() : activity.date).toLocaleString()}</p>
+      <canvas id="qr-${resDoc.id}"></canvas>
+      <button id="download-${resDoc.id}">Descarrega QR</button>
+    `;
+
+    container.appendChild(div);
+
+    // Generar QR
+    const canvas = document.getElementById(`qr-${resDoc.id}`);
+    QRCode.toCanvas(canvas, `Reserva:${resDoc.id}`, function (err) {
+      if (err) console.error(err);
+    });
+
+    // Botó descarregar QR
+    const downloadBtn = document.getElementById(`download-${resDoc.id}`);
+    downloadBtn.addEventListener("click", () => {
+      const dataURL = canvas.toDataURL("image/png");
+      const link = document.createElement("a");
+      link.href = dataURL;
+      link.download = `${activity.title}-QR.png`;
+      link.click();
+    });
   }
 }
