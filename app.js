@@ -165,10 +165,11 @@ if (createBtn) {
 
     await addDoc(collection(db, "activities"), {
       title,
-      date: new Date(date), // guardar com Timestamp
+      date: new Date(date),
       spots_total: spots,
       spots_remaining: spots,
       visible: true,
+      type: "master", // o "foto"
       createdAt: new Date()
     });
 
@@ -359,7 +360,7 @@ async function loadMyReservations() {
   const user = auth.currentUser;
   if (!user) return;
 
-  const container = document.getElementById("myReservations");
+  const container = contentArea;
   if (!container) return;
 
   container.innerHTML = ""; // neteja abans
@@ -394,4 +395,85 @@ async function loadMyReservations() {
 
     container.appendChild(div);
   }
+}
+
+// ==========================
+// TAB SYSTEM
+// ==========================
+
+const contentArea = document.getElementById("contentArea");
+const tabButtons = document.querySelectorAll(".tab-btn");
+
+if (tabButtons.length > 0) {
+  tabButtons.forEach(btn => {
+    btn.addEventListener("click", () => {
+      tabButtons.forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+
+      const tab = btn.dataset.tab;
+
+      if (tab === "master") {
+        loadActivitiesByType("master");
+      } else if (tab === "foto") {
+        loadActivitiesByType("foto");
+      } else if (tab === "reserves") {
+        loadMyReservations();
+      }
+    });
+  });
+
+  // Carrega Master per defecte
+  loadActivitiesByType("master");
+}
+
+async function loadActivitiesByType(type) {
+  if (!contentArea) return;
+
+  contentArea.innerHTML = "";
+
+  const q = query(
+    collection(db, "activities"),
+    where("type", "==", type),
+    where("visible", "==", true)
+  );
+
+  const snapshot = await getDocs(q);
+
+  if (snapshot.empty) {
+    contentArea.innerHTML = "<p>No hi ha activitats disponibles.</p>";
+    return;
+  }
+
+  const grid = document.createElement("div");
+  grid.className = "activities-grid";
+
+  snapshot.forEach((docSnap) => {
+    const data = docSnap.data();
+
+    const div = document.createElement("div");
+    div.className = "activity-card";
+
+    const dateStr = new Date(data.date.toDate ? data.date.toDate() : data.date)
+      .toLocaleString("ca-ES");
+
+    div.innerHTML = `
+      <h3>${data.title}</h3>
+      <p>${dateStr}</p>
+      <p>Places restants: ${data.spots_remaining}</p>
+      <button class="btn reserve-btn">Reserva</button>
+    `;
+
+    const button = div.querySelector(".reserve-btn");
+
+    if (data.spots_remaining <= 0) {
+      button.disabled = true;
+      button.textContent = "Complet";
+    } else {
+      button.addEventListener("click", () => reserve(docSnap.id));
+    }
+
+    grid.appendChild(div);
+  });
+
+  contentArea.appendChild(grid);
 }
