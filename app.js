@@ -354,6 +354,7 @@ async function reserve(activityId) {
   }
 }
 
+
 async function loadMyReservations() {
   const user = auth.currentUser;
   if (!user) return;
@@ -379,7 +380,7 @@ async function loadMyReservations() {
 
     const activity = activitySnap.data();
 
-    // Crear div reserva
+    // Crear div reserva simple
     const div = document.createElement("div");
     div.style.border = "1px solid #ccc";
     div.style.padding = "10px";
@@ -389,26 +390,8 @@ async function loadMyReservations() {
     div.innerHTML = `
       <h4>${activity.title}</h4>
       <p>${new Date(activity.date.toDate ? activity.date.toDate() : activity.date).toLocaleString()}</p>
-      <canvas id="qr-${resDoc.id}"></canvas>
-      <button id="download-${resDoc.id}">Descarrega QR</button>
     `;
 
     container.appendChild(div);
-
-    // Generar QR
-    const canvas = document.getElementById(`qr-${resDoc.id}`);
-    QRCode.toCanvas(canvas, `Reserva:${resDoc.id}`, function (err) {
-      if (err) console.error(err);
-    });
-
-    // Botó descarregar QR
-    const downloadBtn = document.getElementById(`download-${resDoc.id}`);
-    downloadBtn.addEventListener("click", () => {
-      const dataURL = canvas.toDataURL("image/png");
-      const link = document.createElement("a");
-      link.href = dataURL;
-      link.download = `${activity.title}-QR.png`;
-      link.click();
-    });
   }
 }
