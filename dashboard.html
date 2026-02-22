@@ -3,12 +3,19 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Reserves</title>
+  <title>Capital Dance Vic - Activitats</title>
+  <link rel="stylesheet" href="style.css">
   <script type="module" src="app.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
 </head>
 <body>
-  <h2>Activities</h2>
-  <div id="activitiesContainer"></div>
+  <header class="header">
+    <h1 class="title">Activitats disponibles</h1>
+    <button id="logoutBtn" class="btn small">Tancar sessió</button>
+  </header>
+
+  <main class="container">
+    <div id="activitiesContainer" class="activities-grid"></div>
+  </main>
 </body>
 </html>
