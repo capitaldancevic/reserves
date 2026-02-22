@@ -77,7 +77,7 @@ const logoutBtn = document.getElementById("logoutBtn");
 
 if (logoutBtn) {
   logoutBtn.addEventListener("click", async () => {
-    await auth.signOut();
+    await signOut(auth);
     window.location.href = "index.html";
   });
 }
@@ -139,18 +139,6 @@ if (loginBtn) {
       console.error(err);
       alert(err.message);
     }
-  });
-}
-
-// ==========================
-// LOGOUT (opcional, afegir botó logout a dashboard/admin)
-// ==========================
-
-const logoutBtn = document.getElementById("logoutBtn");
-if (logoutBtn) {
-  logoutBtn.addEventListener("click", () => {
-    signOut(auth);
-    window.location.href = "index.html";
   });
 }
 
