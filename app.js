@@ -334,7 +334,10 @@ loadActivities();
 
 async function reserve(activityId) {
   const user = auth.currentUser;
-  if (!user) return alert("Fes login primer!");
+  if (!user) {
+    alert("Fes login primer!");
+    return false;
+  }
 
   const activityRef = doc(db, "activities", activityId);
 
@@ -356,8 +359,10 @@ async function reserve(activityId) {
       const existing = await getDocs(q);
       if (!existing.empty) throw "Ja tens reserva d'aquesta activitat";
 
-      // Restar plaça + crear reserva
-      transaction.update(activityRef, { spots_remaining: data.spots_remaining - 1 });
+      transaction.update(activityRef, {
+        spots_remaining: data.spots_remaining - 1
+      });
+
       transaction.set(doc(reservationsRef), {
         userId: user.uid,
         userEmail: user.email,
@@ -366,10 +371,11 @@ async function reserve(activityId) {
       });
     });
 
-    alert("Reserva feta correctament!");
-    loadActivities();
+    return true;
+
   } catch (err) {
     alert(err);
+    return false;
   }
 }
 
@@ -516,7 +522,30 @@ async function loadActivitiesByType(type) {
         button.disabled = true;
         button.textContent = "Complet";
       } else {
-        button.addEventListener("click", () => reserve(docSnap.id));
+        button.addEventListener("click", async () => {
+        button.disabled = true;
+      
+        const success = await reserve(docSnap.id);
+      
+        if (success) {
+          const spotsDiv = card.querySelector(".master-spots");
+          let currentSpots = parseInt(spotsDiv.textContent);
+      
+          currentSpots -= 1;
+      
+          if (currentSpots <= 0) {
+            spotsDiv.textContent = "0 places disponibles";
+            button.textContent = "Complet";
+            button.disabled = true;
+          } else {
+            spotsDiv.textContent = `${currentSpots} places disponibles`;
+            button.disabled = false;
+          }
+      
+        } else {
+          button.disabled = false;
+        }
+      });
       }
 
       grid.appendChild(card);
