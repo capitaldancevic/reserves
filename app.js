@@ -95,10 +95,14 @@ const registerBtn = document.getElementById("registerBtn");
 if (registerBtn) {
   registerBtn.addEventListener("click", async () => {
     try {
-      const email = document.getElementById("registerEmail").value;
+
+      const nom = document.getElementById("registerNom").value.trim();
+      const cognoms = document.getElementById("registerCognoms").value.trim();
+      const escola = document.getElementById("registerEscola").value.trim();
+      const email = document.getElementById("registerEmail").value.trim();
       const password = document.getElementById("registerPassword").value;
 
-      if (!email || !password) {
+      if (!nom || !cognoms || !escola || !email || !password) {
         alert("Omple tots els camps!");
         return;
       }
@@ -106,16 +110,7 @@ if (registerBtn) {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      // Guardar a Firestore
-      const nom = document.getElementById("registerNom").value;
-      const cognoms = document.getElementById("registerCognoms").value;
-      const escola = document.getElementById("registerEscola").value;
-      
-      if (!nom || !cognoms || !escola) {
-        alert("Omple tots els camps!");
-        return;
-      }
-      
+      // Guardem a Firestore
       await setDoc(doc(db, "users", user.uid), {
         nom,
         cognoms,
@@ -125,7 +120,9 @@ if (registerBtn) {
         createdAt: new Date()
       });
 
-      alert("Registrat correctament!");
+      alert("Registre completat correctament!");
+      window.location.href = "dashboard.html";
+
     } catch (err) {
       console.error(err);
       alert(err.message);
