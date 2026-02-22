@@ -114,6 +114,12 @@ window.reserve = async function(activityId) {
   const activitySnap = await getDoc(activityRef);
   const data = activitySnap.data();
 
+  const qrData = auth.currentUser.uid + "_" + activityId;
+
+  QRCode.toCanvas(document.createElement('canvas'), qrData, function (error, canvas) {
+    document.body.appendChild(canvas);
+  });
+
   if (data.spots_remaining <= 0) {
     alert("No spots left");
     return;
