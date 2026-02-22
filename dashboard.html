@@ -3,22 +3,31 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Capital Dance Vic - Activitats</title>
+  <title>Capital Dance Vic - Dashboard</title>
   <link rel="stylesheet" href="style.css">
   <script type="module" src="app.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
 </head>
 <body>
-  <header class="header">
-    <h1 class="title">Activitats disponibles</h1>
-    <button id="logoutBtn" class="btn small">Tancar sessió</button>
+
+  <!-- HEADER ROSA -->
+  <header class="main-header">
+    <div class="header-content">
+      <img src="logo.png" alt="Capital Dance Vic" class="logo">
+      <button id="logoutBtn" class="btn small logout-btn">Tancar sessió</button>
+    </div>
   </header>
 
+  <!-- SUBHEADER TABS -->
+  <div class="sub-header">
+    <button class="tab-btn active" data-tab="master">Master Class</button>
+    <button class="tab-btn" data-tab="foto">Fotografia</button>
+    <button class="tab-btn" data-tab="reserves">Les meves reserves</button>
+  </div>
+
+  <!-- CONTINGUT DINÀMIC -->
   <main class="container">
-    <div id="activitiesContainer" class="activities-grid"></div>
+    <div id="contentArea"></div>
   </main>
 
-  <h2>Les meves reserves</h2>
-  <div id="myReservations"></div>
 </body>
 </html>
