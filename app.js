@@ -57,3 +57,26 @@ if (loginBtn) {
     window.location.href = "dashboard.html";
   });
 }
+
+import { collection, addDoc, getDocs } 
+from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+const createBtn = document.getElementById("createActivity");
+
+if (createBtn) {
+  createBtn.addEventListener("click", async () => {
+    const title = document.getElementById("title").value;
+    const date = document.getElementById("date").value;
+    const spots = parseInt(document.getElementById("spots").value);
+
+    await addDoc(collection(db, "activities"), {
+      title,
+      date,
+      spots_total: spots,
+      spots_remaining: spots,
+      visible: true
+    });
+
+    alert("Activity created");
+  });
+}
