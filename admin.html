@@ -9,29 +9,61 @@
 </head>
 <body>
 
-  <header class="header">
-    <h1 class="title">Panell Administrador</h1>
+  <!-- HEADER -->
+  <header class="admin-header">
+    <div>
+      <h1 class="admin-title">Panell Administrador</h1>
+      <p class="admin-subtitle">Gestió d'activitats i reserves</p>
+    </div>
     <button id="logoutBtn" class="btn small">Tancar sessió</button>
   </header>
 
-  <main class="container">
+  <!-- SUBNAV -->
+  <div class="admin-subnav">
+    <button class="admin-tab active" data-admin-tab="create">
+      Crear activitat
+    </button>
+    <button class="admin-tab" data-admin-tab="manage">
+      Consultar activitats
+    </button>
+  </div>
 
-    <section class="card">
-      <h2>Crear Activitat</h2>
-      <input type="text" id="title" placeholder="Títol">
-      <input type="datetime-local" id="date">
-      <input type="number" id="spots" placeholder="Places totals">
-      <button id="createActivity" class="btn">Crear Activitat</button>
+  <main class="admin-container">
+
+    <!-- ================= CREATE VIEW ================= -->
+    <section id="adminCreateView" class="admin-view active">
+
+      <div class="admin-card big">
+        <h2>Nova Master Class</h2>
+
+        <div class="form-grid">
+
+          <input id="lloc" placeholder="Lloc">
+          <input id="data" type="date">
+          <input id="horari" placeholder="18:00 - 19:30">
+          <input id="professor" placeholder="Professor">
+          <input id="disciplina" placeholder="Disciplina">
+          <input id="nivell" placeholder="Nivell">
+          <input id="spots" type="number" placeholder="Places totals">
+
+        </div>
+
+        <button id="createActivity" class="btn primary">
+          Crear Master Class
+        </button>
+      </div>
+
     </section>
 
-    <h2>Participants per activitat</h2>
-    <div id="participantsContainer"></div>
 
-    <section class="card">
-      <h2>Llista d&rsquo;Activitats</h2>
-      <div id="activitiesList"></div>
+    <!-- ================= MANAGE VIEW ================= -->
+    <section id="adminManageView" class="admin-view">
+
+      <div id="adminActivitiesGrid" class="admin-activities-grid"></div>
+
     </section>
 
   </main>
+
 </body>
 </html>
