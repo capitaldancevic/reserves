@@ -185,6 +185,52 @@ if (createBtn) {
 }
 
 // ==========================
+// LOAD PARTICIPANTS (ADMIN)
+// ==========================
+async function loadParticipants() {
+  const container = document.getElementById("participantsContainer");
+  if (!container) return;
+
+  container.innerHTML = "";
+
+  const activitiesSnap = await getDocs(collection(db, "activities"));
+
+  for (const activityDoc of activitiesSnap.docs) {
+    const activityData = activityDoc.data();
+    const activityId = activityDoc.id;
+
+    const div = document.createElement("div");
+    div.innerHTML = `<h3>${activityData.title} (${activityData.spots_remaining}/${activityData.spots_total} places left)</h3>`;
+    
+    // Busquem les reserves d’aquesta activitat
+    const reservationsSnap = await getDocs(
+      query(collection(db, "reservations"), where("activityId", "==", activityId))
+    );
+
+    if (reservationsSnap.empty) {
+      div.innerHTML += `<p>No participants yet</p>`;
+    } else {
+      const ul = document.createElement("ul");
+      for (const resDoc of reservationsSnap.docs) {
+        const resData = resDoc.data();
+        const userDoc = await getDoc(doc(db, "users", resData.userId));
+        const userEmail = userDoc.exists() ? userDoc.data().email : "Unknown";
+        const li = document.createElement("li");
+        li.textContent = userEmail;
+        ul.appendChild(li);
+      }
+      div.appendChild(ul);
+    }
+
+    container.appendChild(div);
+  }
+}
+
+if (window.location.pathname.includes("admin")) {
+  loadParticipants();
+}
+
+// ==========================
 // LOAD ACTIVITIES (DASHBOARD)
 // ==========================
 
