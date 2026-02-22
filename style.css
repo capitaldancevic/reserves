@@ -49,9 +49,9 @@ body {
 
 .container {
   width: 95%;
-  max-width: 500px;
+  max-width: 1500px;
   margin: 0 auto;
-  padding: 1rem;
+  padding: 2rem 1rem;
 }
 
 /* ---------- CARD / FORM WRAPPERS ---------- */
@@ -260,10 +260,7 @@ input:focus {
 /* ============================= */
 
 .master-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 2rem;
-  margin-top: 2rem;
+  grid-template-columns: repeat(auto-fit, minmax(480px, 1fr));
 }
 
 /* Responsive */
