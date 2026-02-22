@@ -3,17 +3,32 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Reserves</title>
+  <title>Capital Dance Vic - Admin</title>
+  <link rel="stylesheet" href="style.css">
   <script type="module" src="app.js"></script>
 </head>
 <body>
-  <h2>Create Activity</h2>
 
-  <input type="text" id="title" placeholder="Title">
-  <input type="datetime-local" id="date">
-  <input type="number" id="spots" placeholder="Total spots">
-  <button id="createActivity">Create</button>
-  
-  <div id="activitiesList"></div>
+  <header class="header">
+    <h1 class="title">Panell Administrador</h1>
+    <button id="logoutBtn" class="btn small">Tancar sessió</button>
+  </header>
+
+  <main class="container">
+
+    <section class="card">
+      <h2>Crear Activitat</h2>
+      <input type="text" id="title" placeholder="Títol">
+      <input type="datetime-local" id="date">
+      <input type="number" id="spots" placeholder="Places totals">
+      <button id="createActivity" class="btn">Crear Activitat</button>
+    </section>
+
+    <section class="card">
+      <h2>Llista d&rsquo;Activitats</h2>
+      <div id="activitiesList"></div>
+    </section>
+
+  </main>
 </body>
 </html>
