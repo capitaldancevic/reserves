@@ -255,3 +255,110 @@ input:focus {
   box-shadow: 0 4px 14px rgba(0,0,0,0.1);
 }
 
+/* ============================= */
+/* MASTER CLASS GRID */
+/* ============================= */
+
+.master-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 2rem;
+  margin-top: 2rem;
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+  .master-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ============================= */
+/* MASTER CARD */
+/* ============================= */
+
+.master-card {
+  background: white;
+  border-radius: 16px;
+  padding: 2rem;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+  transition: 0.35s ease;
+  border-left: 6px solid #cb0076;
+}
+
+.master-card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 18px 40px rgba(0,0,0,0.12);
+}
+
+/* Discipline Badge */
+
+.master-discipline {
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: #cb0076;
+  margin-bottom: 0.6rem;
+}
+
+/* Professor */
+
+.master-professor {
+  font-size: 1.6rem;
+  font-weight: 700;
+  margin-bottom: 1.2rem;
+  color: var(--primary-color);
+}
+
+/* Info Grid Inside Card */
+
+.master-info {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.master-info-item {
+  background: #faf9fc;
+  padding: 0.8rem;
+  border-radius: 10px;
+}
+
+.master-info-item span {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #777;
+  margin-bottom: 0.2rem;
+}
+
+.master-info-item strong {
+  font-size: 0.95rem;
+  color: #222;
+}
+
+/* Footer */
+
+.master-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.master-spots {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: #444;
+}
+
+.master-btn {
+  width: auto;
+  padding: 0.6rem 1.2rem;
+  border-radius: 25px;
+  font-size: 0.9rem;
+}
+
