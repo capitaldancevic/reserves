@@ -444,36 +444,66 @@ async function loadActivitiesByType(type) {
     return;
   }
 
-  const grid = document.createElement("div");
-  grid.className = "activities-grid";
+  if (type === "master") {
+    const grid = document.createElement("div");
+    grid.className = "master-grid";
 
-  snapshot.forEach((docSnap) => {
-    const data = docSnap.data();
+    snapshot.forEach((docSnap) => {
+      const data = docSnap.data();
 
-    const div = document.createElement("div");
-    div.className = "activity-card";
+      const dateFormatted = new Date(
+        data.date.toDate ? data.date.toDate() : data.date
+      ).toLocaleDateString("ca-ES");
 
-    const dateStr = new Date(data.date.toDate ? data.date.toDate() : data.date)
-      .toLocaleString("ca-ES");
+      const card = document.createElement("div");
+      card.className = "master-card";
 
-    div.innerHTML = `
-      <h3>${data.title}</h3>
-      <p>${dateStr}</p>
-      <p>Places restants: ${data.spots_remaining}</p>
-      <button class="btn reserve-btn">Reserva</button>
-    `;
+      card.innerHTML = `
+        <div class="master-discipline">${data.disciplina || "Disciplina"}</div>
+        <div class="master-professor">${data.professor || "Professor"}</div>
 
-    const button = div.querySelector(".reserve-btn");
+        <div class="master-info">
+          <div class="master-info-item">
+            <span>Data</span>
+            <strong>${dateFormatted}</strong>
+          </div>
 
-    if (data.spots_remaining <= 0) {
-      button.disabled = true;
-      button.textContent = "Complet";
-    } else {
-      button.addEventListener("click", () => reserve(docSnap.id));
-    }
+          <div class="master-info-item">
+            <span>Horari</span>
+            <strong>${data.horari || "-"}</strong>
+          </div>
 
-    grid.appendChild(div);
-  });
+          <div class="master-info-item">
+            <span>Nivell</span>
+            <strong>${data.nivell || "-"}</strong>
+          </div>
 
-  contentArea.appendChild(grid);
+          <div class="master-info-item">
+            <span>Lloc</span>
+            <strong>${data.lloc || "-"}</strong>
+          </div>
+        </div>
+
+        <div class="master-footer">
+          <div class="master-spots">
+            ${data.spots_remaining} places disponibles
+          </div>
+          <button class="btn master-btn">Reservar</button>
+        </div>
+      `;
+
+      const button = card.querySelector("button");
+
+      if (data.spots_remaining <= 0) {
+        button.disabled = true;
+        button.textContent = "Complet";
+      } else {
+        button.addEventListener("click", () => reserve(docSnap.id));
+      }
+
+      grid.appendChild(card);
+    });
+
+    contentArea.appendChild(grid);
+  }
 }
