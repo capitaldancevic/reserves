@@ -120,7 +120,7 @@ if (createBtn) {
 
     await addDoc(collection(db, "activities"), {
       title,
-      date,
+      date: new Date(date),
       spots_total: spots,
       spots_remaining: spots,
       visible: true,
@@ -155,7 +155,13 @@ async function loadActivities() {
 
     div.innerHTML = `
       <h3>${data.title}</h3>
-      <p>${data.date}</p>
+      <p>${data.date.toDate().toLocaleString("ca-ES", {
+         day: "2-digit",
+         month: "2-digit",
+         year: "numeric",
+         hour: "2-digit",
+         minute: "2-digit"
+       })}</p>
       <p>Spots left: ${data.spots_remaining}</p>
       <button data-id="${docSnap.id}">Reserve</button>
       <hr>
@@ -221,4 +227,42 @@ async function reserve(activityId) {
   alert("Reserved successfully!");
 
   loadActivities();
+}
+
+import { runTransaction } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+async function reserve(activityId) {
+  const user = auth.currentUser;
+  if (!user) return alert("Fes login primer");
+
+  const activityRef = doc(db, "activities", activityId);
+
+  try {
+    await runTransaction(db, async (transaction) => {
+      const activitySnap = await transaction.get(activityRef);
+      if (!activitySnap.exists()) throw "Activitat no trobada";
+      const data = activitySnap.data();
+
+      if (data.spots_remaining <= 0) throw "No queden places";
+
+      const reservationsRef = collection(db, "reservations");
+      const q = query(reservationsRef,
+                      where("userId", "==", user.uid),
+                      where("activityId", "==", activityId));
+      const existing = await getDocs(q);
+      if (!existing.empty) throw "Ja tens reserva";
+
+      transaction.update(activityRef, { spots_remaining: data.spots_remaining - 1 });
+      transaction.set(doc(reservationsRef), {
+        userId: user.uid,
+        activityId,
+        createdAt: new Date()
+      });
+    });
+
+    alert("Reserva feta correctament!");
+    loadActivities();
+  } catch (err) {
+    alert(err);
+  }
 }
