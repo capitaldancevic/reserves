@@ -53,7 +53,6 @@ onAuthStateChanged(auth, async (user) => {
     if (window.location.pathname.includes("dashboard") ||
         window.location.pathname.includes("admin")) {
         window.location.href = "index.html";
-        loadMyReservations();
     }
   } else {
     // Comprovem rol
@@ -66,6 +65,10 @@ onAuthStateChanged(auth, async (user) => {
       // Usuari normal no pot accedir a admin
       alert("No tens permisos per accedir a aquesta pàgina");
       window.location.href = "dashboard.html";
+    }
+
+    if (window.location.pathname.includes("dashboard")) {
+      loadMyReservations();
     }
   }
 });
