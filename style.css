@@ -554,3 +554,7 @@ input:focus {
   padding: 8px 0;
   border-bottom: 1px solid #eee;
 }
+
+#registerForm input {
+  margin-bottom: 15px;
+}
