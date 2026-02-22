@@ -3,30 +3,79 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Capital Dance Vic - Login</title>
+  <title>Capital Dance Vic - Login & Register</title>
+
+  <!-- GOOGLE FONT -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet">
+  
+  <!-- CSS -->
   <link rel="stylesheet" href="style.css">
-  <script type="module" src="app.js"></script>
+
+  <!-- APP JS -->
+  <script type="module" src="app.js" defer></script>
 </head>
 <body>
-  <main class="container centered">
+
+  <main class="container">
 
     <h1 class="title">Capital Dance Vic</h1>
-    <p class="subtitle">Fes login o registra’t per gestionar les teves reserves</p>
+    <p class="subtitle">Gestiona les teves reserves amb un sol clic!</p>
 
-    <section class="card">
-      <h2>Register</h2>
-      <input type="email" id="registerEmail" placeholder="Correu electrònic">
-      <input type="password" id="registerPassword" placeholder="Contrasenya">
-      <button id="registerBtn" class="btn">Registra’t</button>
-    </section>
+    <section class="card" id="authCard">
 
-    <section class="card">
-      <h2>Login</h2>
-      <input type="email" id="loginEmail" placeholder="Correu electrònic">
-      <input type="password" id="loginPassword" placeholder="Contrasenya">
-      <button id="loginBtn" class="btn">Inicia sessió</button>
+      <!-- REGISTER FORM -->
+      <form id="registerForm" class="form-active">
+        <h2 class="form-title">Registra’t</h2>
+        <input type="email" id="registerEmail" placeholder="Correu electrònic" required>
+        <input type="password" id="registerPassword" placeholder="Contrasenya" required>
+        <button type="button" class="btn" id="registerBtn">Registra’t</button>
+
+        <p class="toggle-text">
+          <span>Ja tens compte?</span>
+          <button type="button" class="toggle-btn" id="showLoginBtn">Inicia sessió</button>
+        </p>
+      </form>
+
+      <!-- LOGIN FORM -->
+      <form id="loginForm" class="form-hidden">
+        <h2 class="form-title">Inicia sessió</h2>
+        <input type="email" id="loginEmail" placeholder="Correu electrònic" required>
+        <input type="password" id="loginPassword" placeholder="Contrasenya" required>
+        <button type="button" class="btn" id="loginBtn">Inicia sessió</button>
+
+        <p class="toggle-text">
+          <span>No tens compte?</span>
+          <button type="button" class="toggle-btn" id="showRegisterBtn">Registra’t</button>
+        </p>
+      </form>
+
     </section>
 
   </main>
+
+  <script>
+    // Toggle entre formularis
+    const loginFormEl = document.getElementById('loginForm');
+    const registerFormEl = document.getElementById('registerForm');
+    const showRegisterBtn = document.getElementById('showRegisterBtn');
+    const showLoginBtn = document.getElementById('showLoginBtn');
+
+    showRegisterBtn.addEventListener('click', () => {
+      loginFormEl.classList.remove('form-active');
+      loginFormEl.classList.add('form-hidden');
+      registerFormEl.classList.remove('form-hidden');
+      registerFormEl.classList.add('form-active');
+    });
+
+    showLoginBtn.addEventListener('click', () => {
+      registerFormEl.classList.remove('form-active');
+      registerFormEl.classList.add('form-hidden');
+      loginFormEl.classList.remove('form-hidden');
+      loginFormEl.classList.add('form-active');
+    });
+  </script>
+
 </body>
 </html>
