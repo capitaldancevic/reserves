@@ -528,3 +528,94 @@ async function loadActivitiesByType(type) {
     contentArea.appendChild(grid);
   }
 }
+
+const adminTabs = document.querySelectorAll(".admin-tab");
+
+adminTabs.forEach(tab => {
+  tab.addEventListener("click", () => {
+
+    adminTabs.forEach(t => t.classList.remove("active"));
+    tab.classList.add("active");
+
+    document.querySelectorAll(".admin-view").forEach(view => {
+      view.classList.remove("active");
+    });
+
+    const target = tab.dataset.adminTab;
+
+    if (target === "create") {
+      document.getElementById("adminCreateView").classList.add("active");
+    }
+
+    if (target === "manage") {
+      document.getElementById("adminManageView").classList.add("active");
+      loadAdminActivities();
+    }
+
+  });
+});
+
+async function loadAdminActivities() {
+
+  const container = document.getElementById("adminActivitiesGrid");
+  if (!container) return;
+
+  container.innerHTML = "";
+
+  const snapshot = await getDocs(collection(db, "activities"));
+
+  for (const docSnap of snapshot.docs) {
+
+    const data = docSnap.data();
+    const activityId = docSnap.id;
+
+    const card = document.createElement("div");
+    card.className = "admin-activity-card";
+
+    const formattedDate = new Date(
+      data.data?.toDate ? data.data.toDate() : data.data
+    ).toLocaleDateString("ca-ES");
+
+    card.innerHTML = `
+      <div class="admin-activity-header">
+        <div class="admin-activity-title">
+          ${data.disciplina} - ${data.professor}
+        </div>
+        <div class="admin-activity-meta">
+          ${formattedDate} | ${data.horari} | ${data.lloc}
+        </div>
+        <div class="admin-activity-meta">
+          ${data.spots_remaining}/${data.spots_total} places
+        </div>
+      </div>
+
+      <div class="admin-participants">
+        <h4>Participants</h4>
+        <ul id="participants-${activityId}"></ul>
+      </div>
+    `;
+
+    container.appendChild(card);
+
+    // Carregar participants
+    const reservationsSnap = await getDocs(
+      query(collection(db, "reservations"), where("activityId", "==", activityId))
+    );
+
+    const list = document.getElementById(`participants-${activityId}`);
+
+    if (reservationsSnap.empty) {
+      list.innerHTML = "<li>Cap participant</li>";
+    } else {
+      for (const resDoc of reservationsSnap.docs) {
+        const userDoc = await getDoc(doc(db, "users", resDoc.data().userId));
+        if (!userDoc.exists()) continue;
+
+        const u = userDoc.data();
+        const li = document.createElement("li");
+        li.textContent = `${u.nom} ${u.cognoms} - ${u.escola}`;
+        list.appendChild(li);
+      }
+    }
+  }
+}
