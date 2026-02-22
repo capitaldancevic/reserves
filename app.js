@@ -8,7 +8,8 @@ import {
   getAuth,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
-  onAuthStateChanged
+  onAuthStateChanged,
+  signOut
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
 import {
@@ -21,41 +22,50 @@ import {
   getDocs,
   updateDoc,
   query,
-  where
+  where,
+  runTransaction
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-
 
 // ==========================
 // FIREBASE CONFIG
 // ==========================
 
 const firebaseConfig = {
-  apiKey: "AIzaSyCyR9t974slq_63KePie4stTqg3fbN9uD4",
-  authDomain: "capital-dance-vic-reserves.firebaseapp.com",
-  projectId: "capital-dance-vic-reserves",
-  storageBucket: "capital-dance-vic-reserves.firebasestorage.app",
-  messagingSenderId: "550487696683",
-  appId: "1:550487696683:web:e15891d9c9dab4512cd16e"
+  apiKey: "XXXXX",
+  authDomain: "XXXXX",
+  projectId: "XXXXX",
+  storageBucket: "XXXXX",
+  messagingSenderId: "XXXXX",
+  appId: "XXXXX"
 };
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-
 // ==========================
 // AUTH PROTECTION
 // ==========================
 
 onAuthStateChanged(auth, async (user) => {
+  const path = window.location.pathname;
+
+  // Si no està loguejat i és dashboard/admin → redirect
   if (!user) {
-    if (window.location.pathname.includes("dashboard") ||
-        window.location.pathname.includes("admin")) {
+    if (path.includes("dashboard") || path.includes("admin")) {
+      window.location.href = "index.html";
+    }
+  }
+
+  // Si està loguejat i és admin.html → comprovar rol
+  if (user && path.includes("admin")) {
+    const docSnap = await getDoc(doc(db, "users", user.uid));
+    if (!docSnap.exists() || docSnap.data().role !== "admin") {
+      alert("No tens permisos per entrar aquí");
       window.location.href = "index.html";
     }
   }
 });
-
 
 // ==========================
 // REGISTER
@@ -65,22 +75,31 @@ const registerBtn = document.getElementById("registerBtn");
 
 if (registerBtn) {
   registerBtn.addEventListener("click", async () => {
+    try {
+      const email = document.getElementById("registerEmail").value;
+      const password = document.getElementById("registerPassword").value;
 
-    const email = document.getElementById("registerEmail").value;
-    const password = document.getElementById("registerPassword").value;
+      if (!email || !password) {
+        alert("Omple tots els camps!");
+        return;
+      }
 
-    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-    const user = userCredential.user;
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
 
-    await setDoc(doc(db, "users", user.uid), {
-      email: email,
-      role: "user"
-    });
+      // Guardar a Firestore
+      await setDoc(doc(db, "users", user.uid), {
+        email,
+        role: "user"
+      });
 
-    alert("Registered!");
+      alert("Registrat correctament!");
+    } catch (err) {
+      console.error(err);
+      alert(err.message);
+    }
   });
 }
-
 
 // ==========================
 // LOGIN
@@ -90,15 +109,35 @@ const loginBtn = document.getElementById("loginBtn");
 
 if (loginBtn) {
   loginBtn.addEventListener("click", async () => {
+    try {
+      const email = document.getElementById("loginEmail").value;
+      const password = document.getElementById("loginPassword").value;
 
-    const email = document.getElementById("loginEmail").value;
-    const password = document.getElementById("loginPassword").value;
+      if (!email || !password) {
+        alert("Omple tots els camps!");
+        return;
+      }
 
-    await signInWithEmailAndPassword(auth, email, password);
-    window.location.href = "dashboard.html";
+      await signInWithEmailAndPassword(auth, email, password);
+      window.location.href = "dashboard.html";
+    } catch (err) {
+      console.error(err);
+      alert(err.message);
+    }
   });
 }
 
+// ==========================
+// LOGOUT (opcional, afegir botó logout a dashboard/admin)
+// ==========================
+
+const logoutBtn = document.getElementById("logoutBtn");
+if (logoutBtn) {
+  logoutBtn.addEventListener("click", () => {
+    signOut(auth);
+    window.location.href = "index.html";
+  });
+}
 
 // ==========================
 // CREATE ACTIVITY (ADMIN)
@@ -108,36 +147,33 @@ const createBtn = document.getElementById("createActivity");
 
 if (createBtn) {
   createBtn.addEventListener("click", async () => {
-
     const title = document.getElementById("title").value;
     const date = document.getElementById("date").value;
     const spots = parseInt(document.getElementById("spots").value);
 
     if (!title || !date || !spots) {
-      alert("Fill all fields");
+      alert("Omple tots els camps!");
       return;
     }
 
     await addDoc(collection(db, "activities"), {
       title,
-      date: new Date(date),
+      date: new Date(date), // guardar com Timestamp
       spots_total: spots,
       spots_remaining: spots,
       visible: true,
       createdAt: new Date()
     });
 
-    alert("Activity created");
+    alert("Activitat creada correctament!");
   });
 }
-
 
 // ==========================
 // LOAD ACTIVITIES (DASHBOARD)
 // ==========================
 
 async function loadActivities() {
-
   const container = document.getElementById("activitiesContainer");
   if (!container) return;
 
@@ -146,32 +182,46 @@ async function loadActivities() {
   const snapshot = await getDocs(collection(db, "activities"));
 
   snapshot.forEach((docSnap) => {
-
     const data = docSnap.data();
-
     if (!data.visible) return;
 
     const div = document.createElement("div");
 
+    // Format data
+    let dateStr = "";
+    if (data.date.toDate) {
+      dateStr = data.date.toDate().toLocaleString("ca-ES", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit"
+      });
+    } else {
+      dateStr = new Date(data.date).toLocaleString("ca-ES", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit"
+      });
+    }
+
     div.innerHTML = `
       <h3>${data.title}</h3>
-      <p>${data.date.toDate().toLocaleString("ca-ES", {
-         day: "2-digit",
-         month: "2-digit",
-         year: "numeric",
-         hour: "2-digit",
-         minute: "2-digit"
-       })}</p>
-      <p>Spots left: ${data.spots_remaining}</p>
-      <button data-id="${docSnap.id}">Reserve</button>
+      <p>${dateStr}</p>
+      <p>Places restants: ${data.spots_remaining}</p>
+      <button data-id="${docSnap.id}">Reserva</button>
       <hr>
     `;
 
     const button = div.querySelector("button");
-
-    button.addEventListener("click", () => {
-      reserve(docSnap.id);
-    });
+    if (data.spots_remaining <= 0) {
+      button.disabled = true;
+      button.textContent = "No queden places";
+    } else {
+      button.addEventListener("click", () => reserve(docSnap.id));
+    }
 
     container.appendChild(div);
   });
@@ -179,61 +229,13 @@ async function loadActivities() {
 
 loadActivities();
 
-
 // ==========================
-// RESERVE
+// RESERVE (transacció segura)
 // ==========================
 
 async function reserve(activityId) {
-
   const user = auth.currentUser;
-  if (!user) return;
-
-  const activityRef = doc(db, "activities", activityId);
-  const activitySnap = await getDoc(activityRef);
-  const data = activitySnap.data();
-
-  if (data.spots_remaining <= 0) {
-    alert("No spots left");
-    return;
-  }
-
-  // CHECK duplicate reservation
-  const q = query(
-    collection(db, "reservations"),
-    where("userId", "==", user.uid),
-    where("activityId", "==", activityId)
-  );
-
-  const existing = await getDocs(q);
-
-  if (!existing.empty) {
-    alert("You already reserved this activity");
-    return;
-  }
-
-  // CREATE RESERVATION
-  await addDoc(collection(db, "reservations"), {
-    userId: user.uid,
-    activityId: activityId,
-    createdAt: new Date()
-  });
-
-  // UPDATE SPOTS
-  await updateDoc(activityRef, {
-    spots_remaining: data.spots_remaining - 1
-  });
-
-  alert("Reserved successfully!");
-
-  loadActivities();
-}
-
-import { runTransaction } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-
-async function reserve(activityId) {
-  const user = auth.currentUser;
-  if (!user) return alert("Fes login primer");
+  if (!user) return alert("Fes login primer!");
 
   const activityRef = doc(db, "activities", activityId);
 
@@ -241,17 +243,21 @@ async function reserve(activityId) {
     await runTransaction(db, async (transaction) => {
       const activitySnap = await transaction.get(activityRef);
       if (!activitySnap.exists()) throw "Activitat no trobada";
-      const data = activitySnap.data();
 
+      const data = activitySnap.data();
       if (data.spots_remaining <= 0) throw "No queden places";
 
+      // Comprovar duplicats
       const reservationsRef = collection(db, "reservations");
-      const q = query(reservationsRef,
-                      where("userId", "==", user.uid),
-                      where("activityId", "==", activityId));
+      const q = query(
+        reservationsRef,
+        where("userId", "==", user.uid),
+        where("activityId", "==", activityId)
+      );
       const existing = await getDocs(q);
-      if (!existing.empty) throw "Ja tens reserva";
+      if (!existing.empty) throw "Ja tens reserva d'aquesta activitat";
 
+      // Restar plaça + crear reserva
       transaction.update(activityRef, { spots_remaining: data.spots_remaining - 1 });
       transaction.set(doc(reservationsRef), {
         userId: user.uid,
