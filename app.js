@@ -173,7 +173,7 @@ if (createBtn) {
 }
 
 // ==========================
-// LOAD PARTICIPANTS (ADMIN)
+// LOAD PARTICIPANTS (ADMIN) + VISIBILITAT
 // ==========================
 async function loadParticipants() {
   const container = document.getElementById("participantsContainer");
@@ -188,8 +188,35 @@ async function loadParticipants() {
     const activityId = activityDoc.id;
 
     const div = document.createElement("div");
+    div.style.border = "1px solid #ccc";
+    div.style.padding = "10px";
+    div.style.marginBottom = "10px";
+    div.style.borderRadius = "6px";
+    div.style.backgroundColor = "#f9f9f9";
+
     div.innerHTML = `<h3>${activityData.title} (${activityData.spots_remaining}/${activityData.spots_total} places left)</h3>`;
-    
+
+    // === Checkbox de visibilitat ===
+    const visibleCheckbox = document.createElement("input");
+    visibleCheckbox.type = "checkbox";
+    visibleCheckbox.checked = activityData.visible;
+    visibleCheckbox.style.marginLeft = "10px";
+
+    const label = document.createElement("label");
+    label.textContent = "Visible per usuaris";
+    label.style.marginLeft = "5px";
+    label.prepend(visibleCheckbox);
+
+    div.appendChild(label);
+
+    // Quan es canvia, actualitzem Firestore
+    visibleCheckbox.addEventListener("change", async () => {
+      await updateDoc(doc(db, "activities", activityId), {
+        visible: visibleCheckbox.checked
+      });
+      alert(`Activitat ${visibleCheckbox.checked ? "visible" : "invisible"} per usuaris`);
+    });
+
     // Busquem les reserves d’aquesta activitat
     const reservationsSnap = await getDocs(
       query(collection(db, "reservations"), where("activityId", "==", activityId))
