@@ -400,15 +400,15 @@ input:focus {
 }
 
 .user-avatar {
-  width: 36px;
-  height: 36px;
-  background: rgba(255,255,255,0.2);
-  backdrop-filter: blur(6px);
-  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1rem;
+}
+
+.user-avatar svg {
+  width: 18px;
+  height: 18px;
+  fill: rgba(255,255,255,0.92);
 }
 
 .user-name {
@@ -557,4 +557,330 @@ input:focus {
 
 #registerForm input {
   margin-bottom: 15px;
+}
+
+/* ============================= */
+/* INDEX (LOGIN/REGISTER) ONLY   */
+/* ============================= */
+
+.auth-page .container {
+  max-width: 900px;   /* ajusta: 700-1000 segons gust */
+}
+
+.auth-page #authCard {
+  max-width: 820px;   /* fa la "caixa" més petita */
+  margin: 0 auto;     /* la centra */
+}
+
+.reservations-grid .reservation-card {
+  border-left-color: #cb0076; /* diferenciem reserves però mateix estil */
+}
+
+.reservation-status {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: #444;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.reservation-btn[disabled] {
+  opacity: 0.85;
+  cursor: default;
+}
+
+/* ============================= */
+/* TOAST (PROMPT) */
+/* ============================= */
+#toastContainer {
+  position: fixed;
+  right: 18px;
+  top: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 9999;
+}
+
+.toast {
+  background: rgba(20, 20, 20, 0.92);
+  color: white;
+  padding: 12px 14px;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.22);
+  font-weight: 600;
+  font-size: 0.95rem;
+  opacity: 0;
+  transform: translateY(-8px);
+  transition: 0.28s ease;
+  max-width: 320px;
+}
+
+.toast.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.toast.success { border-left: 4px solid #2ecc71; }
+.toast.error   { border-left: 4px solid #ff4d4d; }
+
+/* ============================= */
+/* FADE OUT CARD */
+/* ============================= */
+.master-card.fade-out {
+  opacity: 0 !important;
+  transform: translateY(10px) !important;
+  transition: 0.28s ease !important;
+  pointer-events: none;
+}
+
+/* ============================= */
+/* AUTH LOGO (INDEX ONLY)        */
+/* ============================= */
+
+.auth-page .auth-logo {
+  display: block;
+  width: min(180px, 70vw);  /* mida pro i responsive */
+  height: auto;
+  margin: 0 auto 1rem auto; /* centrat + espai inferior */
+}
+
+.auth-page .title {
+  margin-top: 0.2rem;
+}
+
+/* ============================= */
+/* ADMIN (LOOK LIKE DASHBOARD)   */
+/* ============================= */
+
+.admin-page .admin-container {
+  max-width: 1300px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+}
+
+/* fa que el sub-header de l'admin tingui el mateix aire però amb espai extra si cal */
+.admin-page .admin-subheader {
+  justify-content: center;
+}
+
+/* la card de crear activitat que quedi més “dashboard” */
+.admin-page .admin-card.big {
+  max-width: 1000px;
+  margin: 2rem auto 0 auto;
+}
+
+/* ============================= */
+/* WAITLIST (MASTER CARD)        */
+/* ============================= */
+
+.master-card.waitlist-card {
+  border-left-color: #ff9800 !important;
+  background: linear-gradient(180deg, #fff7ec 0%, #ffffff 100%);
+}
+
+.master-card.waitlist-card .master-discipline {
+  color: #ff9800;
+}
+
+.master-card.waitlist-card .master-btn {
+  background: #ff9800;
+  box-shadow: 0 4px 14px rgba(255,152,0,0.28);
+}
+
+.master-card.waitlist-card .master-btn:hover {
+  background: #ffb74d;
+}
+
+/* ============================= */
+/* MOBILE HEADER + TABS FIX      */
+/* ============================= */
+@media (max-width: 600px) {
+
+  /* Header: que faci wrap i no talli */
+  .main-header {
+    padding: 0.8rem 1rem;
+  }
+
+  .header-content {
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    justify-content: center; /* evita que quedi descompensat */
+  }
+
+  .logo {
+    height: 42px;
+  }
+
+  /* User area: que no se'n vagi fora pantalla */
+  .user-area {
+    width: 100%;
+    justify-content: space-between;
+    gap: 0.6rem;
+  }
+
+  .user-info {
+    min-width: 0; /* permet truncar text */
+    gap: 0.5rem;
+  }
+
+  .user-name {
+    max-width: 140px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* Botons header: més compactes */
+  .logout-btn {
+    padding: 0.5rem 0.85rem;
+    font-size: 0.85rem;
+    border-radius: 22px;
+  }
+
+  /* Subheader tabs: scroll horitzontal i no es tallin */
+  .sub-header {
+    justify-content: flex-start;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    gap: 0.6rem;
+    padding: 0.75rem 0.9rem;
+  }
+
+  .sub-header::-webkit-scrollbar {
+    display: none; /* net */
+  }
+
+  .tab-btn {
+    flex: 0 0 auto;
+    white-space: nowrap;
+    padding: 0.55rem 0.9rem;
+    font-size: 0.9rem;
+  }
+
+  /* Container: menys padding perquè tot capigui millor */
+  .container {
+    padding: 1.2rem 0.9rem;
+  }
+}
+
+@media (max-width: 600px) {
+  .master-card {
+    padding: 1.4rem;
+  }
+
+  .master-professor {
+    font-size: 1.35rem;
+  }
+
+  .master-info {
+    grid-template-columns: 1fr; /* millor lectura a mòbil */
+  }
+
+  .master-footer {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.8rem;
+  }
+
+  .master-btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 600px) {
+  .auth-page .auth-logo {
+    width: min(150px, 70vw);
+  }
+
+  .auth-page .title {
+    font-size: 1.7rem;
+  }
+
+  .auth-page #authCard {
+    padding: 1.3rem;
+  }
+}
+
+@media (max-width: 600px) {
+  #toastContainer {
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
+    top: 12px;
+  }
+
+  .toast {
+    max-width: calc(100vw - 24px);
+  }
+}
+
+/* ============================= */
+/* ADMIN - MOBILE CARDS COMPACT  */
+/* ============================= */
+@media (max-width: 600px) {
+
+  /* espai general més petit */
+  .admin-page .admin-container {
+    padding: 1.2rem 0.9rem;
+  }
+
+  /* graella: una sola columna i gap més petit */
+  .admin-page .admin-activities-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  /* card més compacta */
+  .admin-page .admin-activity-card {
+    padding: 18px;
+    border-radius: 14px;
+  }
+
+  /* header de la card: menys marge i text controlat */
+  .admin-page .admin-activity-header {
+    margin-bottom: 12px;
+  }
+
+  .admin-page .admin-activity-title {
+    font-size: 18px;
+    line-height: 1.2;
+    word-break: break-word; /* evita tall visual */
+  }
+
+  .admin-page .admin-activity-meta {
+    font-size: 13px;
+    line-height: 1.35;
+    margin-top: 6px;
+    opacity: 0.75;
+    word-break: break-word;
+  }
+
+  /* participants: no facis blocs massa grans */
+  .admin-page .admin-participants h4 {
+    margin: 12px 0 8px;
+    font-size: 15px;
+  }
+
+  .admin-page .admin-participants li {
+    padding: 8px 0;
+  }
+}
+
+@media (max-width: 600px) {
+  .admin-page .admin-container {
+    padding-top: 1rem;
+  }
+}
+
+@media (max-width: 600px) {
+  .admin-page .main-header {
+    padding: 0.7rem 1rem;
+  }
+
+  .admin-page .logo {
+    height: 38px;
+  }
 }
