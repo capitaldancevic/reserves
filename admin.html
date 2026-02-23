@@ -7,25 +7,43 @@
   <link rel="stylesheet" href="style.css">
   <script type="module" src="app.js"></script>
 </head>
-<body>
+<body class="admin-page">
 
   <!-- HEADER -->
-  <header class="admin-header">
-    <div>
-      <h1 class="admin-title">Panell Administrador</h1>
-      <p class="admin-subtitle">Gestió d'activitats i reserves</p>
+  <header class="main-header">
+    <div class="header-content">
+
+      <img src="logo_cd_h.svg" alt="Capital Dance Vic" class="logo">
+
+      <div class="user-area">
+        <div class="user-info">
+          <div class="user-avatar" aria-hidden="true">
+            <svg viewBox="0 0 24 24" role="img" focusable="false">
+              <path d="M12 12c2.76 0 5-2.24 5-5S14.76 2 12 2 7 4.24 7 7s2.24 5 5 5Zm0 2c-4.42 0-8 2.24-8 5v1h16v-1c0-2.76-3.58-5-8-5Z"></path>
+            </svg>
+          </div>
+          <div class="user-name">
+            Admin
+          </div>
+        </div>
+
+        <button id="goDashboardBtn" class="logout-btn">
+          Vista usuari
+        </button>
+
+        <button id="logoutBtn" class="logout-btn">
+          Tancar sessió
+        </button>
+      </div>
+
     </div>
-    <button id="logoutBtn" class="btn small">Tancar sessió</button>
   </header>
 
   <!-- SUBNAV -->
-  <div class="admin-subnav">
-    <button class="admin-tab active" data-admin-tab="create">
-      Crear activitat
-    </button>
-    <button class="admin-tab" data-admin-tab="manage">
-      Consultar activitats
-    </button>
+  <div class="sub-header admin-subheader">
+    <button class="tab-btn active" data-admin-tab="create">Crear activitat</button>
+    <button class="tab-btn" data-admin-tab="manage">Consultar activitats</button>
+    <button class="tab-btn" data-admin-tab="waitlist">Llistes d'espera</button>
   </div>
 
   <main class="admin-container">
@@ -61,6 +79,10 @@
 
       <div id="adminActivitiesGrid" class="admin-activities-grid"></div>
 
+    </section>
+
+    <section id="adminWaitlistView" class="admin-view">
+      <div id="adminWaitlistGrid" class="admin-activities-grid"></div>
     </section>
 
   </main>
