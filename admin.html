@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Capital Dance Vic - Admin</title>
   <link rel="stylesheet" href="style.css">
+  <link rel="icon" type="image/svg+xml" href="logo_cd_v.svg">
+  <link rel="alternate icon" href="favicon.ico">
   <script type="module" src="app.js"></script>
 </head>
 <body class="admin-page">
@@ -66,9 +68,15 @@
 
         </div>
 
-        <button id="createActivity" class="btn primary">
-          Crear Master Class
-        </button>
+        <div class="admin-form-actions">
+          <button id="createActivity" class="btn primary">
+            Crear Master Class
+          </button>
+
+          <button type="button" id="cancelEditBtn" class="btn cancel-edit-btn" style="display:none;">
+            Cancel·lar edició
+          </button>
+        </div>
       </div>
 
     </section>
