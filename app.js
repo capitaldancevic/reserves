@@ -9,7 +9,9 @@ import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   onAuthStateChanged,
-  signOut
+  signOut,
+  sendEmailVerification,
+  reload
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
 import {
@@ -62,36 +64,57 @@ onAuthStateChanged(auth, async (user) => {
 
     const role = userDoc.data().role;
     const userData = userDoc.data();
-    const isDashboard = window.location.pathname.includes("dashboard");
-    const isAdminPage = window.location.pathname.includes("admin");
+    const path = window.location.pathname;
+    const isDashboard = path.includes("dashboard");
+    const isAdminPage = path.includes("admin");
+
     const params = new URLSearchParams(window.location.search);
-    const adminWantsUserView = params.get("view") === "user";
+    const adminUserView = params.get("view") === "user"; // dashboard.html?view=user
 
-    // Si sóc admin:
-    // - Normalment vaig a admin.html
-    // - EXCEPCIÓ: si estic a dashboard amb ?view=user, em deixes quedar
-    // ===== Mostrar botó "Tornar a Admin" si sóc admin en vista usuari =====
     if (role === "admin") {
-      const params = new URLSearchParams(window.location.search);
-      const isUserView = params.get("view") === "user";
+      // Admin per defecte: admin.html
+      // EXCEPCIÓ: si està a dashboard amb ?view=user, el deixem (vista usuari)
+      if (isDashboard && !adminUserView) {
+        window.location.href = "admin.html";
+        return;
+      }
 
-      if (isUserView && window.location.pathname.includes("dashboard")) {
+      if (isAdminPage) {
+        // OK: estic a admin
+        return;
+      }
 
-        const headerContent = document.querySelector(".header-content");
+      // Si admin està en qualsevol altra pàgina (ex: index), envia'l a admin
+      if (!isDashboard) {
+        window.location.href = "admin.html";
+        return;
+      }
+    } else {
+      // Usuari normal: dashboard.html
+      if (!isDashboard) {
+        window.location.href = "dashboard.html";
+        return;
+      }
+    }
 
-        if (headerContent && !document.getElementById("backToAdminBtn")) {
+    // Mostrar botó "Tornar a Admin" només si sóc admin i estic a dashboard en vista usuari
+    if (role === "admin" && isDashboard && adminUserView) {
+      const userArea = document.querySelector(".user-area");
 
-          const backBtn = document.createElement("button");
-          backBtn.id = "backToAdminBtn";
-          backBtn.className = "logout-btn";
-          backBtn.textContent = "Tornar a Admin";
+      if (userArea && !document.getElementById("backToAdminBtn")) {
+        const backBtn = document.createElement("button");
+        backBtn.id = "backToAdminBtn";
+        backBtn.className = "logout-btn";
+        backBtn.textContent = "Tornar a Admin";
 
-          backBtn.addEventListener("click", () => {
-            window.location.href = "admin.html";
-          });
+        backBtn.addEventListener("click", () => {
+          window.location.href = "admin.html";
+        });
 
-          headerContent.appendChild(backBtn);
-        }
+        // el posem abans de "Tancar sessió" si existeix
+        const logoutBtn = document.getElementById("logoutBtn");
+        if (logoutBtn) userArea.insertBefore(backBtn, logoutBtn);
+        else userArea.appendChild(backBtn);
       }
     }
 
@@ -160,14 +183,32 @@ if (registerBtn) {
       const escola = document.getElementById("registerEscola").value.trim();
       const email = document.getElementById("registerEmail").value.trim();
       const password = document.getElementById("registerPassword").value;
+      const password2 = document.getElementById("registerPassword2").value;
 
       if (!nom || !cognoms || !escola || !email || !password) {
 	    showToast("Omple tots els camps", "error");
         return;
       }
 
+      if (password !== password2) {
+        showToast("Les contrasenyes no coincideixen.", "error");
+        document.getElementById("registerPassword").value = "";
+        document.getElementById("registerPassword2").value = "";
+        return;
+      }
+
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
+
+      await sendEmailVerification(user);
+      showToast("T'hem enviat un correu de confirmació. Revisa la safata d'entrada (i spam).", "success");
+
+      // Opcional però recomanat: obligar a verificar abans d'entrar
+      await signOut(auth);
+      setTimeout(() => {
+        window.location.href = "index.html";
+      }, 900);
+      return;
 
       // Guardem a Firestore
       await setDoc(doc(db, "users", user.uid), {
@@ -196,6 +237,7 @@ if (registerBtn) {
 	  showToast(map[code] || "No s'ha pogut completar el registre", "error");
     }
   });
+  
 }
 
 // ==========================
@@ -258,26 +300,56 @@ if (createBtn) {
     }
 
     try {
-      await addDoc(collection(db, "activities"), {
-        type: "master",
-        lloc,
-        date: new Date(data),
-        horari,
-        professor,
-        disciplina,
-        nivell,
-        spots_total: spots,
-        spots_remaining: spots,
-        visible: true,
-        createdAt: new Date()
-      });
 
-      showToast("Activitat creada correctament ✅", "success");
+  if (editingActivityId) {
+
+    await updateDoc(doc(db, "activities", editingActivityId), {
+      lloc,
+      date: new Date(data),
+      horari,
+      professor,
+      disciplina,
+      nivell,
+      spots_total: spots
+    });
+
+    showToast("Activitat actualitzada correctament ✏️", "success");
+
+    resetCreateMode();
+    document.querySelector('[data-admin-tab="manage"]').click();
+
+  } else {
+
+    await addDoc(collection(db, "activities"), {
+      type: "master",
+      lloc,
+      date: new Date(data),
+      horari,
+      professor,
+      disciplina,
+      nivell,
+      spots_total: spots,
+      spots_remaining: spots,
+      visible: true,
+      createdAt: new Date()
+    });
+
+    showToast("Activitat creada correctament ✅", "success");
+  }
 
     } catch (err) {
       console.error(err);
-      showToast("Error en crear l'activitat.", "error");
+      showToast("Error en guardar l'activitat.", "error");
     }
+  });
+}
+
+const cancelEditBtn = document.getElementById("cancelEditBtn");
+
+if (cancelEditBtn) {
+  cancelEditBtn.addEventListener("click", () => {
+    resetCreateMode();
+    showToast("Edició cancel·lada.", "success");
   });
 }
 
@@ -935,6 +1007,10 @@ adminTabs.forEach(tab => {
 
     const view = tab.dataset.adminTab;
 
+    if (editingActivityId && view !== "create") {
+      resetCreateMode();
+    }
+
     document.querySelectorAll(".admin-view")
       .forEach(v => v.classList.remove("active"));
 
@@ -970,17 +1046,33 @@ async function loadAdminActivities() {
       data.data?.toDate ? data.data.toDate() : data.data
     ).toLocaleDateString("ca-ES");
 
+    const rawDate = data.date ?? data.data;
+    let dateFormatted = "-";
+
+    if (rawDate) {
+      const jsDate = typeof rawDate.toDate === "function"
+        ? rawDate.toDate()
+        : new Date(rawDate);
+
+      dateFormatted = jsDate.toLocaleDateString("ca-ES");
+    }
+
     card.innerHTML = `
       <div class="admin-activity-header">
-        <div class="admin-activity-title">
-          ${data.disciplina} - ${data.professor}
+        <div>
+          <div class="admin-activity-title">
+            ${data.disciplina || "Activitat"} - ${data.professor || ""}
+          </div>
+          <div class="admin-activity-meta">
+            ${dateFormatted} · ${data.horari || "-"} · ${data.lloc || "-"}
+          </div>
         </div>
-        <div class="admin-activity-meta">
-          ${formattedDate} | ${data.horari} | ${data.lloc}
-        </div>
-        <div class="admin-activity-meta">
-          ${data.spots_remaining}/${data.spots_total} places
-        </div>
+
+        <button class="edit-activity-btn" aria-label="Editar activitat" title="Editar">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25Zm2.92 2.83H5v-.92l9.06-9.06.92.92L5.92 20.08ZM20.71 7.04a1.003 1.003 0 0 0 0-1.42l-2.34-2.34a1.003 1.003 0 0 0-1.42 0l-1.83 1.83 3.75 3.75 1.84-1.82Z"></path>
+          </svg>
+        </button>
       </div>
 
       <div class="admin-participants">
@@ -988,6 +1080,12 @@ async function loadAdminActivities() {
         <ul id="participants-${activityId}"></ul>
       </div>
     `;
+
+    const editBtn = card.querySelector(".edit-activity-btn");
+
+    editBtn.addEventListener("click", () => {
+      loadActivityIntoForm(activityId, data);
+    });
 
     container.appendChild(card);
 
@@ -1012,6 +1110,61 @@ async function loadAdminActivities() {
       }
     }
   }
+}
+
+let editingActivityId = null;
+
+function loadActivityIntoForm(activityId, activityData) {
+
+  editingActivityId = activityId;
+
+  // Omplir formulari
+  document.getElementById("lloc").value = activityData.lloc || "";
+  document.getElementById("data").value = 
+    activityData.date?.toDate
+      ? activityData.date.toDate().toISOString().split("T")[0]
+      : "";
+
+  document.getElementById("horari").value = activityData.horari || "";
+  document.getElementById("professor").value = activityData.professor || "";
+  document.getElementById("disciplina").value = activityData.disciplina || "";
+  document.getElementById("nivell").value = activityData.nivell || "";
+  document.getElementById("spots").value = activityData.spots_total || "";
+
+  // Canviar botó
+  const createBtn = document.getElementById("createActivity");
+  createBtn.textContent = "Guardar canvis";
+
+  const cancelBtn = document.getElementById("cancelEditBtn");
+  if (cancelBtn) cancelBtn.style.display = "inline-flex";
+
+  const createTabBtn = document.querySelector('[data-admin-tab="create"]');
+  if (createTabBtn) createTabBtn.textContent = "Editar activitat";
+
+  // Canviar pestanya a "Crear activitat"
+  document.querySelector('[data-admin-tab="create"]').click();
+}
+
+function resetCreateMode() {
+  editingActivityId = null;
+
+  const createBtn = document.getElementById("createActivity");
+  if (createBtn) createBtn.textContent = "Crear Master Class";
+
+  const createTabBtn = document.querySelector('[data-admin-tab="create"]');
+  if (createTabBtn) createTabBtn.textContent = "Crear activitat";
+
+  const cancelBtn = document.getElementById("cancelEditBtn");
+  if (cancelBtn) cancelBtn.style.display = "none";
+
+  // Buidar formulari
+  document.getElementById("lloc").value = "";
+  document.getElementById("data").value = "";
+  document.getElementById("horari").value = "";
+  document.getElementById("professor").value = "";
+  document.getElementById("disciplina").value = "";
+  document.getElementById("nivell").value = "";
+  document.getElementById("spots").value = "";
 }
 
 async function loadAdminWaitlists() {
