@@ -884,3 +884,93 @@ input:focus {
     height: 38px;
   }
 }
+
+/* Pencil edit button (admin cards) */
+.admin-activity-header { 
+  position: relative;
+}
+
+.edit-activity-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  background: #ffffff;
+  border: 1px solid rgba(0,0,0,0.08);
+  box-shadow: 0 10px 25px rgba(0,0,0,0.10);
+
+  cursor: pointer;
+}
+
+.edit-activity-btn svg {
+  width: 18px;
+  height: 18px;
+  fill: #0F1A2F;
+}
+
+.edit-activity-btn:hover {
+  transform: translateY(-1px);
+  transition: 0.15s ease;
+}
+
+/* Cancel edit button (admin) */
+.cancel-edit-btn {
+  background: #dc2626;
+  color: white;
+
+  font-size: 13px;
+  padding: 6px 14px;
+  border-radius: 20px;
+
+  margin: 12px auto 0 auto;  /* això el centra */
+  display: block;            /* necessari per centrar amb auto */
+
+  width: fit-content;
+}
+
+.cancel-edit-btn:hover {
+  background: #b91c1c;
+  transform: translateY(-1px);
+  transition: 0.15s ease;
+}
+
+/* Admin create form actions layout */
+.admin-form-actions{
+  display: flex;
+  flex-direction: column;
+  align-items: center;   /* CENTRA els botons */
+  gap: 10px;
+  margin-top: 12px;
+}
+
+/* Mantén el principal com el tens (si el vols ample) */
+.admin-form-actions #createActivity{
+  width: 100%;
+  max-width: 520px;      /* evita botó massa llarg en pantalles grans */
+}
+
+/* Cancel·lar centrat i més petit */
+.admin-form-actions .cancel-edit-btn{
+  background: #dc2626;
+  color: #fff;
+
+  font-size: 13px;
+  padding: 6px 14px;
+  border-radius: 20px;
+
+  width: fit-content;
+}
+
+.admin-form-actions .cancel-edit-btn:hover{
+  background: #b91c1c;
+  transform: translateY(-1px);
+  transition: 0.15s ease;
+}
