@@ -26,6 +26,8 @@ import {
   deleteDoc,
   query,
   where,
+  orderBy,
+  limit,
   runTransaction
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
@@ -40,6 +42,12 @@ const firebaseConfig = {
   storageBucket: "capital-dance-vic-reserves.firebasestorage.app",
   messagingSenderId: "550487696683",
   appId: "1:550487696683:web:e15891d9c9dab4512cd16e"
+};
+
+const PAYMENT_INFO = {
+  ibanMasked: "ES** **** **** **** **** 1234",
+  ibanFull: "ES12 3456 7890 1234 5678 1234",
+  holder: "CAPITAL DANCE VIC"
 };
 
 const app = initializeApp(firebaseConfig);
@@ -134,6 +142,7 @@ onAuthStateChanged(auth, async (user) => {
 
     if (window.location.pathname.includes("dashboard")) {
       // Carrega el contingut que correspongui amb la pestanya activa (per defecte: Master Class)
+      await updatePriceHeader();
       const activeBtn = document.querySelector(".tab-btn.active");
       const activeTab = activeBtn?.dataset?.tab || "master";
 
@@ -200,17 +209,7 @@ if (registerBtn) {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      await sendEmailVerification(user);
-      showToast("T'hem enviat un correu de confirmació. Revisa la safata d'entrada (i spam).", "success");
-
-      // Opcional però recomanat: obligar a verificar abans d'entrar
-      await signOut(auth);
-      setTimeout(() => {
-        window.location.href = "index.html";
-      }, 900);
-      return;
-
-      // Guardem a Firestore
+      // Primer guardem a Firestore
       await setDoc(doc(db, "users", user.uid), {
         nom,
         cognoms,
@@ -219,6 +218,18 @@ if (registerBtn) {
         role: "user",
         createdAt: new Date()
       });
+
+      // Després enviem verificació
+      await sendEmailVerification(user);
+
+      showToast("T'hem enviat un correu de confirmació. Revisa la safata d'entrada (i spam).", "success");
+
+      // Forcem logout fins que verifiqui
+      await signOut(auth);
+
+      setTimeout(() => {
+        window.location.href = "index.html";
+      }, 900);
 
 	  showToast("Registre completat! Entrant a la web de reserves…", "success");
 	  setTimeout(() => {
@@ -331,6 +342,7 @@ if (createBtn) {
       spots_total: spots,
       spots_remaining: spots,
       visible: true,
+      isOpen: true,
       createdAt: new Date()
     });
 
@@ -511,6 +523,53 @@ function showToast(message, variant = "success") {
   }, 2200);
 }
 
+function priceForIndex(i) {
+  if (i === 0) return 25;
+  if (i === 1) return 20;
+  return 15;
+}
+
+function totalForCount(n) {
+  let total = 0;
+  for (let i = 0; i < n; i++) total += priceForIndex(i);
+  return total;
+}
+
+function toJsDate(v) {
+  if (!v) return null;
+  return typeof v.toDate === "function" ? v.toDate() : new Date(v);
+}
+
+async function updatePriceHeader() {
+  const el = document.getElementById("priceSummary");
+  if (!el) return;
+
+  const user = auth.currentUser;
+  if (!user) { el.innerHTML = ""; return; }
+
+  const snap = await getDocs(query(collection(db, "reservations"), where("userId", "==", user.uid)));
+  const n = snap.size; // waitlist no compta perquè no mirem waitlist
+
+  const total = totalForCount(n);
+  const next = priceForIndex(n);
+
+  el.innerHTML = `
+  <div class="price-main">
+    <span>Total:</span>
+    <strong class="total-amount">${total}€</strong>
+    <span class="divider">·</span>
+    <span>Propera reserva:</span>
+    <strong>${next}€</strong>
+  </div>
+
+  <div class="price-packs">
+    <span>Individual 25€</span>
+    <span>Pack 2: 45€</span>
+    <span>Pack 3: 60€</span>
+  </div>
+`;
+}
+
 // ==========================
 // RESERVE (transacció segura)
 // ==========================
@@ -546,11 +605,15 @@ async function reserve(activityId) {
         spots_remaining: data.spots_remaining - 1
       });
 
+      const paymentRef = `CDV-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
+
       transaction.set(doc(reservationsRef), {
         userId: user.uid,
         userEmail: user.email,
         activityId,
-        createdAt: new Date()
+        createdAt: new Date(),
+        paymentStatus: "pending",
+        paymentRef
       });
     });
 
@@ -574,7 +637,13 @@ async function loadMyReservations() {
     query(collection(db, "reservations"), where("userId", "==", user.uid))
   );
 
-  if (reservationsSnap.empty) {
+  const resDocs = reservationsSnap.docs.slice().sort((a,b) => {
+    const da = toJsDate(a.data().createdAt) || new Date(0);
+    const db = toJsDate(b.data().createdAt) || new Date(0);
+    return da - db;
+  });
+
+  if (resDocs.length === 0) {
     contentArea.innerHTML = "<p>No tens cap reserva.</p>";
     return;
   }
@@ -582,7 +651,8 @@ async function loadMyReservations() {
   const grid = document.createElement("div");
   grid.className = "master-grid reservations-grid";
 
-  for (const resDoc of reservationsSnap.docs) {
+  for (const [idx, resDoc] of resDocs.entries()) {
+    const unitPrice = priceForIndex(idx);
     const resData = resDoc.data();
 
     const activitySnap = await getDoc(doc(db, "activities", resData.activityId));
@@ -628,12 +698,30 @@ async function loadMyReservations() {
       </div>
 
       <div class="master-footer">
-        <div class="reservation-status">✅ Reserva confirmada</div>
-        <button class="btn master-btn cancel-btn">Cancel·lar</button>
+      <div>
+        <div class="reservation-status pending">
+          ⏳ Pendent de transferència · Confirma la reserva fent la transferència al mateix dia de la Master Class.
+        </div>
+
+        <div class="reservation-price">
+          Preu: <strong>${unitPrice}€</strong>
+        </div>
+
+        <div class="payment-mini">
+          <button type="button" class="btn payment-btn">Veure instruccions</button>
+        </div>
       </div>
+
+      <button class="btn master-btn cancel-btn">Cancel·lar</button>
+    </div>
     `;
 
     const cancelBtn = card.querySelector(".cancel-btn");
+    const payBtn = card.querySelector(".payment-btn");
+    if (payBtn) {
+      const paymentRef = resData.paymentRef || "-";
+      payBtn.addEventListener("click", () => openPaymentModal(paymentRef));
+    }
     cancelBtn.addEventListener("click", async () => {
       cancelBtn.disabled = true;
       cancelBtn.textContent = "Cancel·lant...";
@@ -641,6 +729,7 @@ async function loadMyReservations() {
       const ok = await cancelReservation(resDoc.id, resData.activityId);
 
       if (ok) {
+        await updatePriceHeader();
         showToast("Reserva cancel·lada ✅", "success");
 
         // Fade out i treu la card
@@ -742,24 +831,82 @@ async function cancelReservation(reservationId, activityId) {
 
   try {
     await runTransaction(db, async (transaction) => {
+      // 1) Validar reserva
       const resSnap = await transaction.get(reservationRef);
       if (!resSnap.exists()) throw "Reserva no trobada.";
 
       const resData = resSnap.data();
       if (resData.userId !== user.uid) throw "No tens permisos per cancel·lar aquesta reserva.";
 
+      // 2) Llegir activitat
       const actSnap = await transaction.get(activityRef);
       if (!actSnap.exists()) throw "Activitat no trobada.";
 
       const a = actSnap.data();
+
       const currentRemaining = Number(a.spots_remaining ?? 0);
       const total = Number(a.spots_total ?? currentRemaining);
 
-      // pugem 1 plaça (sense passar del total)
+      // 3) Alliberar 1 plaça (sense passar del total)
       const nextRemaining = Math.min(total, currentRemaining + 1);
 
-      transaction.update(activityRef, { spots_remaining: nextRemaining });
+      // 4) Esborrar la reserva
       transaction.delete(reservationRef);
+
+      // 5) Intentar promoure la 1a persona de la waitlist (ordre d'arribada)
+      // IMPORTANT: només si hi ha plaça (nextRemaining > 0)
+      if (nextRemaining > 0) {
+        const waitQ = query(
+          collection(db, "waitlist"),
+          where("activityId", "==", activityId),
+          where("status", "==", "waiting"),
+          orderBy("createdAt", "asc"),
+          limit(1)
+        );
+
+        const waitSnap = await getDocs(waitQ);
+
+        if (!waitSnap.empty) {
+          const firstWaitDoc = waitSnap.docs[0];
+          const firstWaitData = firstWaitDoc.data();
+          const promotedUserId = firstWaitData.userId;
+
+          // Evitar duplicat: si ja té reserva (per seguretat)
+          const dupQ = query(
+            collection(db, "reservations"),
+            where("activityId", "==", activityId),
+            where("userId", "==", promotedUserId)
+          );
+          const dupSnap = await getDocs(dupQ);
+
+          if (dupSnap.empty) {
+            // Crear reserva per la persona promoguda
+            const newResRef = doc(collection(db, "reservations"));
+            transaction.set(newResRef, {
+              userId: promotedUserId,
+              activityId,
+              createdAt: new Date(),
+              promotedFromWaitlist: true
+            });
+
+            // Treure'l de la waitlist
+            transaction.delete(doc(db, "waitlist", firstWaitDoc.id));
+
+            // I “consumir” la plaça que havíem alliberat
+            transaction.update(activityRef, {
+              spots_remaining: nextRemaining - 1
+            });
+          } else {
+            // Si ja tenia reserva, mantenim la plaça alliberada normal
+            transaction.update(activityRef, { spots_remaining: nextRemaining });
+          }
+
+          return;
+        }
+      }
+
+      // Si no hi ha waitlist o no hi ha plaça, només actualitzem spots_remaining
+      transaction.update(activityRef, { spots_remaining: nextRemaining });
     });
 
     return true;
@@ -778,18 +925,23 @@ async function joinWaitlist(activityId) {
   }
 
   try {
-    // Evitar duplicats (si ja hi és)
-    const existing = await getDocs(
-      query(
-        collection(db, "waitlist"),
-        where("activityId", "==", activityId),
-        where("userId", "==", user.uid)
-      )
+    const waitlistRef = collection(db, "waitlist");
+
+    // Quanta gent hi ha actualment?
+    const snap = await getDocs(
+      query(waitlistRef, where("activityId", "==", activityId))
     );
 
-    if (!existing.empty) return true;
+    if (snap.size >= 5) {
+      showToast("La llista d'espera està completa.", "error");
+      return false;
+    }
 
-    await addDoc(collection(db, "waitlist"), {
+    // Evitar duplicats
+    const existing = snap.docs.find(d => d.data().userId === user.uid);
+    if (existing) return true;
+
+    await addDoc(waitlistRef, {
       activityId,
       userId: user.uid,
       createdAt: new Date(),
@@ -843,155 +995,201 @@ async function loadActivitiesByType(type) {
 
   if (type === "master") {
     const grid = document.createElement("div");
+
+    const grouped = {
+      "Clàssic": [],
+      "Contemporani": [],
+      "Jazz": []
+    };
+
     grid.className = "master-grid";
 
-    snapshot.forEach((docSnap) => {
-      const data = docSnap.data();
+    const nextPrice = priceForIndex(myResMap.size);
 
-      const rawDate = data.date ?? data.data;
-      let dateFormatted = "-";
-      if (rawDate) {
-        const jsDate = typeof rawDate.toDate === "function" ? rawDate.toDate() : new Date(rawDate);
-        dateFormatted = jsDate.toLocaleDateString("ca-ES");
+    for (const docSnap of snapshot.docs) {
+    const data = docSnap.data();
+    const isOpen = data.isOpen !== false;
+
+    const rawDate = data.date ?? data.data;
+    let dateFormatted = "-";
+    if (rawDate) {
+      const jsDate = typeof rawDate.toDate === "function" ? rawDate.toDate() : new Date(rawDate);
+      dateFormatted = jsDate.toLocaleDateString("ca-ES");
+    }
+
+    // Si ja tinc reserva d'aquesta activitat, NO la mostrem a Master Class
+    if (myResMap.has(docSnap.id)) continue;
+
+    const card = document.createElement("div");
+    card.className = "master-card";
+
+    card.innerHTML = `
+      <div class="master-discipline">${data.disciplina || "Disciplina"}</div>
+      <div class="master-professor">${data.professor || "Professor"}</div>
+
+      <div class="master-info">
+        <div class="master-info-item">
+          <span>Data</span>
+          <strong>${dateFormatted}</strong>
+        </div>
+
+        <div class="master-info-item">
+          <span>Horari</span>
+          <strong>${data.horari || "-"}</strong>
+        </div>
+
+        <div class="master-info-item">
+          <span>Nivell</span>
+          <strong>${data.nivell || "-"}</strong>
+        </div>
+
+        <div class="master-info-item">
+          <span>Lloc</span>
+          <strong>${data.lloc || "-"}</strong>
+        </div>
+      </div>
+
+      <div class="master-footer">
+        <div class="master-spots">
+          ${data.spots_remaining} places disponibles
+        </div>
+        <div class="master-price">
+          Preu: <strong>${nextPrice}€</strong>
+        </div>
+        <div class="waitlist-counter"></div>
+        <button class="btn master-btn">Reservar</button>
+      </div>
+    `;
+
+    const button = card.querySelector("button");
+
+    if (!isOpen) {
+      card.classList.add("activity-closed-card");
+
+      button.textContent = "Activitat no disponible";
+      button.disabled = true;
+
+      const disciplina = data.disciplina || "Altres";
+
+      if (!grouped[disciplina]) grouped[disciplina] = [];
+      grouped[disciplina].push(card);
+      continue;
+    }
+
+    // Comptar quanta gent hi ha a la waitlist d'aquesta activitat
+    const waitSnap = await getDocs(
+      query(
+        collection(db, "waitlist"),
+        where("activityId", "==", docSnap.id),
+        where("status", "==", "waiting")
+      )
+    );
+
+    const waitCount = waitSnap.size;
+
+    const counterEl = card.querySelector(".waitlist-counter");
+    if (counterEl) {
+      counterEl.textContent = `${waitCount} / 5 en llista d'espera`;
+    }
+
+    if (data.spots_remaining <= 0) {
+
+      card.classList.add("waitlist-card");
+
+      // Si la llista ja està plena (5)
+      if (waitCount >= 5) {
+        card.classList.add("waitlist-full-card");
+        button.textContent = "Llista d'espera completa";
+        button.disabled = true;
+
+        grid.appendChild(card);
+        continue;
       }
 
-      // Si ja tinc reserva d'aquesta activitat, NO la mostrem a Master Class / Foto
-      if (myResMap.has(docSnap.id)) return;
-
-      const card = document.createElement("div");
-      card.className = "master-card";
-
-      card.innerHTML = `
-        <div class="master-discipline">${data.disciplina || "Disciplina"}</div>
-        <div class="master-professor">${data.professor || "Professor"}</div>
-
-        <div class="master-info">
-          <div class="master-info-item">
-            <span>Data</span>
-            <strong>${dateFormatted}</strong>
-          </div>
-
-          <div class="master-info-item">
-            <span>Horari</span>
-            <strong>${data.horari || "-"}</strong>
-          </div>
-
-          <div class="master-info-item">
-            <span>Nivell</span>
-            <strong>${data.nivell || "-"}</strong>
-          </div>
-
-          <div class="master-info-item">
-            <span>Lloc</span>
-            <strong>${data.lloc || "-"}</strong>
-          </div>
-        </div>
-
-        <div class="master-footer">
-          <div class="master-spots">
-            ${data.spots_remaining} places disponibles
-          </div>
-          <button class="btn master-btn">Reservar</button>
-        </div>
-      `;
-
-      const button = card.querySelector("button");
-
-      if (data.spots_remaining <= 0) {
-
-        // Card “diferent” per indicar llista d’espera
-        card.classList.add("waitlist-card");
-
-        // Si ja hi soc, informatiu i desactivat
-        if (myWaitlistMap.has(docSnap.id)) {
+      // Si ja hi soc → sortir
+      if (myWaitlistMap.has(docSnap.id)) {
 
         const waitlistId = myWaitlistMap.get(docSnap.id);
 
-        if (!waitlistId) {
-          showToast("No s'ha trobat la teva entrada de llista d'espera.", "error");
-          return;
-        }
-
         button.textContent = "Sortir de la llista";
-        button.classList.remove("primary");
 
         button.addEventListener("click", async () => {
-
           button.disabled = true;
 
           const ok = await leaveWaitlist(waitlistId);
 
           if (ok) {
-  showToast("Has sortit de la llista d'espera.", "success");
-
-  // Manté la card i torna a estat "Entrar a llista"
-  button.disabled = false;
-  button.textContent = "Entrar a llista d'espera";
-
-  // ⚠️ Important: perquè no acumulis listeners duplicats,
-  // recarreguem la pestanya actual (Master Class) de manera neta
-  // (és el camí més segur i curt)
-  loadActivitiesByType("master");
-
+            showToast("Has sortit de la llista d'espera.", "success");
+            loadActivitiesByType("master");
           } else {
             button.disabled = false;
           }
         });
-      } else {
-          // Si no hi soc, permet entrar
-          button.textContent = "Entrar a llista d'espera";
-
-          button.addEventListener("click", async () => {
-            button.disabled = true;
-
-            const ok = await joinWaitlist(docSnap.id);
-
-            if (ok) {
-              showToast("Afegit a la llista d'espera 🕒", "success");
-
-              // Manté la card i actualitza el botó
-              button.disabled = false;
-              button.textContent = "En llista d'espera";
-              button.disabled = true;
-
-              // assegura estil waitlist
-              card.classList.add("waitlist-card");
-
-            } else {
-              button.disabled = false;
-            }
-          });
-        }
 
       } else {
+        // Si no hi soc → entrar
+        button.textContent = "Entrar a llista d'espera";
+
         button.addEventListener("click", async () => {
+          button.disabled = true;
+
+          const ok = await joinWaitlist(docSnap.id);
+
+          if (ok) {
+            showToast("Afegit a la llista d'espera 🕒", "success");
+            loadActivitiesByType("master"); // recarrega per reflectir estat i límit 5
+          } else {
+            button.disabled = false;
+          }
+        });
+      }
+
+    } else {
+      // Places disponibles → reservar
+      button.addEventListener("click", async () => {
         button.disabled = true;
-      
+
         const success = await reserve(docSnap.id);
-      
+
         if (success) {
+          await updatePriceHeader();
           showToast("Reserva confirmada ✅", "success");
-
-          // Fade out i treu la card
           card.classList.add("fade-out");
-          setTimeout(() => {
-            card.remove();
-
-            // Si ja no queden cards, mostra missatge
-            if (!grid.querySelector(".master-card")) {
-              contentArea.innerHTML = "<p>No hi ha activitats disponibles.</p>";
-            }
-          }, 280);
-
+          setTimeout(() => card.remove(), 280);
         } else {
           showToast("No s'ha pogut reservar (ja la tens o no queden places).", "error");
           button.disabled = false;
         }
       });
-      }
+    }
 
-      grid.appendChild(card);
-    });
+    const disciplina = data.disciplina || "Altres";
+
+    if (!grouped[disciplina]) grouped[disciplina] = [];
+    grouped[disciplina].push(card);
+    }
+
+    Object.entries(grouped).forEach(([disciplina, cards]) => {
+
+    if (cards.length === 0) return;
+
+    const section = document.createElement("div");
+    section.className = "discipline-section";
+
+    const title = document.createElement("h2");
+    title.className = "discipline-title";
+    title.textContent = disciplina;
+
+    const disciplineGrid = document.createElement("div");
+    disciplineGrid.className = "master-grid";
+
+    cards.forEach(card => disciplineGrid.appendChild(card));
+
+    section.appendChild(title);
+    section.appendChild(disciplineGrid);
+
+    grid.appendChild(section);
+  });
 
     contentArea.appendChild(grid);
   }
@@ -1066,6 +1264,13 @@ async function loadAdminActivities() {
           <div class="admin-activity-meta">
             ${dateFormatted} · ${data.horari || "-"} · ${data.lloc || "-"}
           </div>
+          <div class="admin-activity-toggle">
+            <label class="toggle-switch">
+              <input type="checkbox" class="activity-open-checkbox" ${data.isOpen !== false ? "checked" : ""}>
+              <span class="slider"></span>
+              <span class="toggle-label">Activar / Desactivar</span>
+            </label>
+          </div>
         </div>
 
         <button class="edit-activity-btn" aria-label="Editar activitat" title="Editar">
@@ -1086,6 +1291,23 @@ async function loadAdminActivities() {
     editBtn.addEventListener("click", () => {
       loadActivityIntoForm(activityId, data);
     });
+
+    const openCheckbox = card.querySelector(".activity-open-checkbox");
+
+    if (openCheckbox) {
+      openCheckbox.addEventListener("change", async () => {
+        await updateDoc(doc(db, "activities", activityId), {
+          isOpen: openCheckbox.checked
+        });
+
+        showToast(
+          openCheckbox.checked
+            ? "Activitat activada"
+            : "Activitat desactivada",
+          "success"
+        );
+      });
+    }
 
     container.appendChild(card);
 
@@ -1256,4 +1478,158 @@ async function renderWaitlistUsers(items) {
   }
 
   return html;
+}
+
+function ensurePaymentModal() {
+  let modal = document.getElementById("paymentModal");
+  if (modal) return modal;
+
+  modal = document.createElement("div");
+  modal.id = "paymentModal";
+  modal.className = "modal-overlay";
+  modal.innerHTML = `
+    <div class="modal-card">
+      <div class="modal-head">
+        <div>
+          <h3>Transferència bancària</h3>
+          <p>La reserva no quedarà confirmada fins que no s'hagi fet la transferència al mateix dia de la Master Class.</p>
+        </div>
+        <button type="button" class="modal-close" aria-label="Tancar">×</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="pay-row">
+          <span class="pay-label">Titular</span>
+          <strong id="payHolder"></strong>
+        </div>
+
+        <div class="pay-row">
+          <span class="pay-label">Compte (IBAN)</span>
+          <div class="pay-iban">
+            <strong id="payIban"></strong>
+            <button type="button" class="btn copy-btn" id="copyIbanBtn">Copiar</button>
+          </div>
+        </div>
+
+        <div class="pay-row">
+          <span class="pay-label">Concepte</span>
+          <strong id="payRef"></strong>
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" class="btn primary" id="closePayBtn">Entesos</button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(modal);
+
+  // Close handlers
+  const close = () => modal.classList.remove("show");
+  modal.addEventListener("click", (e) => { if (e.target === modal) close(); });
+  modal.querySelector(".modal-close").addEventListener("click", close);
+  modal.querySelector("#closePayBtn").addEventListener("click", close);
+
+  // Copy handler
+  modal.querySelector("#copyIbanBtn").addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(PAYMENT_INFO.ibanFull);
+      showToast("IBAN copiat ✅", "success");
+    } catch {
+      showToast("No s'ha pogut copiar l'IBAN", "error");
+    }
+  });
+
+  return modal;
+}
+
+function openPaymentModal(paymentRef) {
+  const modal = ensurePaymentModal();
+
+  modal.querySelector("#payHolder").textContent = PAYMENT_INFO.holder;
+  modal.querySelector("#payIban").textContent = PAYMENT_INFO.ibanFull;
+  modal.querySelector("#payRef").textContent = paymentRef;
+
+  requestAnimationFrame(() => modal.classList.add("show"));
+}
+
+const exportBtn = document.getElementById("exportExcelBtn");
+
+if (exportBtn) {
+  exportBtn.addEventListener("click", exportReservationsToExcel);
+}
+
+async function exportReservationsToExcel() {
+
+  showToast("Generant Excel...", "success");
+
+  const reservationsSnap = await getDocs(collection(db, "reservations"));
+
+  if (reservationsSnap.empty) {
+    showToast("No hi ha reserves.", "error");
+    return;
+  }
+
+  const rows = [];
+
+  for (const resDoc of reservationsSnap.docs) {
+
+    const r = resDoc.data();
+
+    const userSnap = await getDoc(doc(db, "users", r.userId));
+    const activitySnap = await getDoc(doc(db, "activities", r.activityId));
+
+    if (!userSnap.exists() || !activitySnap.exists()) continue;
+
+    const u = userSnap.data();
+    const a = activitySnap.data();
+
+    const rawDate = a.date ?? a.data;
+    const jsDate = rawDate?.toDate ? rawDate.toDate() : new Date(rawDate);
+
+    rows.push({
+      Nom: u.nom || "",
+      Cognoms: u.cognoms || "",
+      Email: u.email || "",
+      Escola: u.escola || "",
+      Activitat: a.disciplina || "",
+      Professor: a.professor || "",
+      Data: jsDate?.toLocaleDateString("ca-ES") || "",
+      Horari: a.horari || "",
+      Lloc: a.lloc || "",
+      PaymentRef: r.paymentRef || "",
+      PaymentStatus: r.paymentStatus || ""
+    });
+  }
+
+  downloadCSV(rows);
+}
+
+function downloadCSV(data) {
+
+  const headers = Object.keys(data[0]);
+  const csvRows = [];
+
+  csvRows.push(headers.join(","));
+
+  for (const row of data) {
+    const values = headers.map(h => {
+      const val = row[h] ?? "";
+      return `"${String(val).replace(/"/g, '""')}"`;
+    });
+    csvRows.push(values.join(","));
+  }
+
+  const blob = new Blob([csvRows.join("\n")], { type: "text/csv" });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "reserves_capital_dance_vic.csv";
+  a.click();
+
+  URL.revokeObjectURL(url);
+
+  showToast("Excel descarregat correctament ✅", "success");
 }
