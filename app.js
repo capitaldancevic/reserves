@@ -700,7 +700,7 @@ async function loadMyReservations() {
       <div class="master-footer">
       <div>
         <div class="reservation-status pending">
-          ⏳ Pendent de transferència · Confirma la reserva fent la transferència al mateix dia de la Master Class.
+          ⏳ Pendent de pagament. S’ha d’abonar en efectiu el dia de la MasterClass
         </div>
 
         <div class="reservation-price">
