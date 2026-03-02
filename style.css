@@ -259,18 +259,20 @@ input:focus {
 /* MASTER CLASS GRID */
 /* ============================= */
 
-.master-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(480px, 1fr));
+.master-grid{
+  display:grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 2rem;
   margin-top: 2rem;
 }
 
-/* Responsive */
-@media (max-width: 900px) {
-  .master-grid {
-    grid-template-columns: 1fr;
-  }
+.master-grid > .discipline-section{
+  grid-column: 1 / -1;   /* ocupa totes les columnes del grid pare */
+}
+
+/* Tablet i mòbil: 1 columna */
+@media (max-width: 900px){
+  .master-grid{ grid-template-columns: 1fr; }
 }
 
 /* ============================= */
@@ -892,8 +894,7 @@ input:focus {
 
 .edit-activity-btn {
   position: absolute;
-  top: 10px;
-  right: 10px;
+  right: 50px;
 
   width: 36px;
   height: 36px;
@@ -1308,4 +1309,141 @@ input:focus {
   letter-spacing:0.5px;
   padding-left:6px;
   border-left:4px solid #111827;
+}
+
+.delete-activity-btn{
+  background:#dc2626;
+  border:none;
+  width:36px;
+  height:36px;
+  border-radius:8px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  cursor:pointer;
+  transition:all .2s ease;
+}
+
+.delete-activity-btn svg{
+  fill:white;
+  width:16px;
+  height:16px;
+}
+
+.delete-activity-btn:hover{
+  background:#b91c1c;
+  transform:translateY(-2px);
+}
+
+.admin-activity-header{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:16px;
+}
+
+.admin-activity-info{
+  flex:1;
+  min-width:0;
+}
+
+.admin-activity-actions{
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+
+.delete-activity-btn{
+  width:36px;
+  height:36px;
+  border-radius:50%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  cursor:pointer;
+  border:none;
+  background:#dc2626;
+}
+
+.delete-activity-btn svg{
+  width:16px;
+  height:16px;
+  fill:#fff;
+}
+
+.admin-participant-item{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 0;
+}
+
+.admin-remove-participant-btn{
+  width: 34px;
+  height: 34px;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  background: #e53935;
+  color: #fff;
+  font-size: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.admin-remove-participant-btn:hover{
+  filter: brightness(0.95);
+}
+
+.admin-remove-participant-btn:disabled{
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* =============================
+   DASHBOARD - FILTRE DISCIPLINA
+============================= */
+
+.discipline-filter-bar{
+  background: #fff;
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  padding: 10px 12px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.04);
+  border-top: 1px solid #f0f0f0;
+}
+
+.disc-filter-btn{
+  border: 1px solid #e6e6e6;
+  background: #fff;
+  padding: 8px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 0.9rem;
+  transition: 0.2s ease;
+}
+
+.disc-filter-btn:hover{
+  background: #f7f7f7;
+}
+
+.disc-filter-btn.active{
+  background: #cb0076;
+  border-color: #cb0076;
+  color: #fff;
+}
+
+/* mòbil: scroll horitzontal si cal */
+@media (max-width: 600px){
+  .discipline-filter-bar{
+    justify-content: flex-start;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .discipline-filter-bar::-webkit-scrollbar{ display:none; }
+  .disc-filter-btn{ flex: 0 0 auto; white-space: nowrap; }
 }
