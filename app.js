@@ -55,6 +55,41 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 
 // ==========================
+// DISCIPLINE FILTER (DASHBOARD)
+// ==========================
+
+const PRIMARY_DISCS = new Set(["Clàssic", "Contemporani", "Jazz"]);
+let activeDiscFilter = "all"; // all | Clàssic | Contemporani | Jazz
+let disciplineFilterInitDone = false;
+
+function setDisciplineBarVisible(isVisible) {
+  const bar = document.getElementById("disciplineFilterBar");
+  if (!bar) return;
+  bar.style.display = isVisible ? "flex" : "none";
+}
+
+function initDisciplineFilters() {
+  if (disciplineFilterInitDone) return; // evita doble binding
+  const bar = document.getElementById("disciplineFilterBar");
+  if (!bar) return;
+
+  disciplineFilterInitDone = true;
+
+  bar.addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-disc]");
+    if (!btn) return;
+
+    activeDiscFilter = btn.dataset.disc || "all";
+
+    bar.querySelectorAll(".disc-filter-btn").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+
+    // només recarreguem Master
+    loadActivitiesByType("master");
+  });
+}
+
+// ==========================
 // AUTH PROTECTION
 // ==========================
 
@@ -141,10 +176,14 @@ onAuthStateChanged(auth, async (user) => {
     }
 
     if (window.location.pathname.includes("dashboard")) {
-      // Carrega el contingut que correspongui amb la pestanya activa (per defecte: Master Class)
       await updatePriceHeader();
+
+      initDisciplineFilters();
+
       const activeBtn = document.querySelector(".tab-btn.active");
       const activeTab = activeBtn?.dataset?.tab || "master";
+
+      setDisciplineBarVisible(activeTab === "master");
 
       if (activeTab === "reserves") {
         loadMyReservations();
@@ -706,6 +745,10 @@ async function loadMyReservations() {
         <div class="reservation-price">
           Preu: <strong>${unitPrice}€</strong>
         </div>
+
+        <div class="payment-mini">
+          <button type="button" class="btn payment-btn">Veure instruccions</button>
+        </div>
       </div>
 
       <button class="btn master-btn cancel-btn">Cancel·lar</button>
@@ -766,6 +809,7 @@ if (tabButtons.length > 0) {
       btn.classList.add("active");
 
       const tab = btn.dataset.tab;
+      setDisciplineBarVisible(tab === "master");
 
       if (tab === "master") {
         loadActivitiesByType("master");
@@ -776,9 +820,6 @@ if (tabButtons.length > 0) {
       }
     });
   });
-
-  // Carrega Master per defecte
-  loadActivitiesByType("master");
 }
 
 async function getMyReservationMap() {
@@ -913,6 +954,38 @@ async function cancelReservation(reservationId, activityId) {
   }
 }
 
+async function adminRemoveParticipant(reservationId, activityId) {
+  const activityRef = doc(db, "activities", activityId);
+  const reservationRef = doc(db, "reservations", reservationId);
+
+  try {
+    await runTransaction(db, async (transaction) => {
+      const resSnap = await transaction.get(reservationRef);
+      if (!resSnap.exists()) throw "Reserva no trobada";
+
+      const actSnap = await transaction.get(activityRef);
+      if (!actSnap.exists()) throw "Activitat no trobada";
+
+      const a = actSnap.data();
+      const currentRemaining = Number(a.spots_remaining ?? 0);
+      const total = Number(a.spots_total ?? currentRemaining);
+
+      // esborrem la reserva
+      transaction.delete(reservationRef);
+
+      // alliberem plaça (sense passar del total)
+      const nextRemaining = Math.min(total, currentRemaining + 1);
+      transaction.update(activityRef, { spots_remaining: nextRemaining });
+    });
+
+    return true;
+  } catch (err) {
+    console.error(err);
+    alert(err);
+    return false;
+  }
+}
+
 async function joinWaitlist(activityId) {
   const user = auth.currentUser;
   if (!user) {
@@ -1004,6 +1077,13 @@ async function loadActivitiesByType(type) {
 
     for (const docSnap of snapshot.docs) {
     const data = docSnap.data();
+    const disc = (data.disciplina || "Altres").trim();
+
+    if (activeDiscFilter !== "all") {
+      const isPrimary = PRIMARY_DISCS.has(disc);
+      const allow = (disc === activeDiscFilter) || (!isPrimary); // deixa passar "Global" i altres
+      if (!allow) continue;
+    }
     const isOpen = data.isOpen !== false;
 
     const rawDate = data.date ?? data.data;
@@ -1069,6 +1149,7 @@ async function loadActivitiesByType(type) {
 
       if (!grouped[disciplina]) grouped[disciplina] = [];
       grouped[disciplina].push(card);
+      grid.appendChild(card);
       continue;
     }
 
@@ -1253,13 +1334,15 @@ async function loadAdminActivities() {
 
     card.innerHTML = `
       <div class="admin-activity-header">
-        <div>
+        <div class="admin-activity-info">
           <div class="admin-activity-title">
             ${data.disciplina || "Activitat"} - ${data.professor || ""}
           </div>
+
           <div class="admin-activity-meta">
             ${dateFormatted} · ${data.horari || "-"} · ${data.lloc || "-"}
           </div>
+
           <div class="admin-activity-toggle">
             <label class="toggle-switch">
               <input type="checkbox" class="activity-open-checkbox" ${data.isOpen !== false ? "checked" : ""}>
@@ -1269,11 +1352,19 @@ async function loadAdminActivities() {
           </div>
         </div>
 
-        <button class="edit-activity-btn" aria-label="Editar activitat" title="Editar">
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25Zm2.92 2.83H5v-.92l9.06-9.06.92.92L5.92 20.08ZM20.71 7.04a1.003 1.003 0 0 0 0-1.42l-2.34-2.34a1.003 1.003 0 0 0-1.42 0l-1.83 1.83 3.75 3.75 1.84-1.82Z"></path>
-          </svg>
-        </button>
+        <div class="admin-activity-actions">
+          <button class="edit-activity-btn" aria-label="Editar activitat" title="Editar">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25Zm2.92 2.83H5v-.92l9.06-9.06.92.92L5.92 20.08ZM20.71 7.04a1.003 1.003 0 0 0 0-1.42l-2.34-2.34a1.003 1.003 0 0 0-1.42 0l-1.83 1.83 3.75 3.75 1.84-1.82Z"></path>
+            </svg>
+          </button>
+
+          <button class="delete-activity-btn" aria-label="Esborrar activitat" title="Esborrar">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M6 7h12l-1 14H7L6 7Zm3-3h6l1 2H8l1-2Z"></path>
+            </svg>
+          </button>
+        </div>
       </div>
 
       <div class="admin-participants">
@@ -1283,6 +1374,47 @@ async function loadAdminActivities() {
     `;
 
     const editBtn = card.querySelector(".edit-activity-btn");
+
+    const deleteBtn = card.querySelector(".delete-activity-btn");
+
+    deleteBtn.addEventListener("click", async () => {
+
+      const confirmDelete = confirm("Segur que vols esborrar aquesta Master Class?");
+
+      if (!confirmDelete) return;
+
+      try {
+
+        // Esborrar reserves associades
+        const reservationsSnap = await getDocs(
+          query(collection(db, "reservations"), where("activityId", "==", activityId))
+        );
+
+        for (const r of reservationsSnap.docs) {
+          await deleteDoc(doc(db, "reservations", r.id));
+        }
+
+        // Esborrar waitlist associada
+        const waitSnap = await getDocs(
+          query(collection(db, "waitlist"), where("activityId", "==", activityId))
+        );
+
+        for (const w of waitSnap.docs) {
+          await deleteDoc(doc(db, "waitlist", w.id));
+        }
+
+        // Esborrar activitat
+        await deleteDoc(doc(db, "activities", activityId));
+
+        showToast("Activitat esborrada correctament 🗑️", "success");
+
+        loadAdminActivities(); // refresca vista
+
+      } catch (err) {
+        console.error(err);
+        showToast("Error en esborrar l'activitat.", "error");
+      }
+    });
 
     editBtn.addEventListener("click", () => {
       loadActivityIntoForm(activityId, data);
@@ -1318,14 +1450,45 @@ async function loadAdminActivities() {
       list.innerHTML = "<li>Cap participant</li>";
     } else {
       for (const resDoc of reservationsSnap.docs) {
-        const userDoc = await getDoc(doc(db, "users", resDoc.data().userId));
-        if (!userDoc.exists()) continue;
+      const resData = resDoc.data();
 
-        const u = userDoc.data();
-        const li = document.createElement("li");
-        li.textContent = `${u.nom} ${u.cognoms} - ${u.escola}`;
-        list.appendChild(li);
-      }
+      const userDoc = await getDoc(doc(db, "users", resData.userId));
+      if (!userDoc.exists()) continue;
+
+      const u = userDoc.data();
+
+      const li = document.createElement("li");
+      li.className = "admin-participant-item";
+
+      const nameSpan = document.createElement("span");
+      nameSpan.textContent = `${u.nom} ${u.cognoms} - ${u.escola}`;
+
+      const removeBtn = document.createElement("button");
+      removeBtn.className = "admin-remove-participant-btn";
+      removeBtn.type = "button";
+      removeBtn.title = "Esborrar alumne d'aquesta Master Class";
+      removeBtn.innerHTML = "🗑";
+
+      removeBtn.addEventListener("click", async () => {
+        const ok = confirm(`Segur que vols esborrar ${u.nom} ${u.cognoms} d’aquesta Master Class?`);
+        if (!ok) return;
+
+        removeBtn.disabled = true;
+
+        const done = await adminRemoveParticipant(resDoc.id, activityId);
+
+        if (done) {
+          showToast("Alumne esborrat ✅", "success");
+          loadAdminActivities(); // refresca la vista
+        } else {
+          removeBtn.disabled = false;
+        }
+      });
+
+      li.appendChild(nameSpan);
+      li.appendChild(removeBtn);
+      list.appendChild(li);
+    }
     }
   }
 }
