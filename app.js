@@ -1,4 +1,19 @@
 // ==========================
+// APP VERSION CONTROL
+// ==========================
+
+const APP_VERSION = "1.0.3";
+
+const storedVersion = localStorage.getItem("app_version");
+
+if (storedVersion && storedVersion !== APP_VERSION) {
+  localStorage.setItem("app_version", APP_VERSION);
+  location.reload(true);
+} else {
+  localStorage.setItem("app_version", APP_VERSION);
+}
+
+// ==========================
 // FIREBASE IMPORTS
 // ==========================
 
