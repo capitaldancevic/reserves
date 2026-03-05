@@ -745,10 +745,6 @@ async function loadMyReservations() {
         <div class="reservation-price">
           Preu: <strong>${unitPrice}€</strong>
         </div>
-
-        <div class="payment-mini">
-          <button type="button" class="btn payment-btn">Veure instruccions</button>
-        </div>
       </div>
 
       <button class="btn master-btn cancel-btn">Cancel·lar</button>
