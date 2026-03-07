@@ -2,7 +2,7 @@
 // APP VERSION CONTROL
 // ==========================
 
-const APP_VERSION = "1.0.3";
+const APP_VERSION = "1.0.4";
 
 const storedVersion = localStorage.getItem("app_version");
 
@@ -60,14 +60,33 @@ const firebaseConfig = {
 };
 
 const PAYMENT_INFO = {
-  ibanMasked: "ES** **** **** **** **** 1234",
-  ibanFull: "ES12 3456 7890 1234 5678 1234",
+  ibanMasked: "",
+  ibanFull: "",
   holder: "CAPITAL DANCE VIC"
 };
+
+const PHOTO_PRICES = {
+  solo: 0,   // ← canvia-ho quan et passin preus
+  duo: 0,
+  trio: 0
+};
+
+const PHOTO_DAYS = [
+  { key: "2026-03-27", label: "27 març", start: "10:00", end: "21:00" },
+  { key: "2026-03-28", label: "28 març", start: "10:00", end: "21:00" },
+  { key: "2026-03-29", label: "29 març", start: "10:00", end: "18:00" }
+];
+
+const PHOTO_TYPES = ["solo", "duo", "trio"];
+
+let activePhotoDay = "2026-03-27";
+let activePhotoType = "solo";
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
+
+const PHOTO_SETTINGS_DOC_ID = "general";
 
 // ==========================
 // DISCIPLINE FILTER (DASHBOARD)
@@ -203,7 +222,7 @@ onAuthStateChanged(auth, async (user) => {
       if (activeTab === "reserves") {
         loadMyReservations();
       } else if (activeTab === "foto") {
-        loadActivitiesByType("foto");
+        loadPhotoStudioGrid();
       } else {
         loadActivitiesByType("master");
       }
@@ -583,6 +602,15 @@ function priceForIndex(i) {
   return 15;
 }
 
+function isPrimaryDisciplineName(disciplina) {
+  const disc = (disciplina || "").trim();
+  return disc === "Jazz" || disc === "Contemporani" || disc === "Clàssic";
+}
+
+function getActivityPriceByDiscipline(disciplina, paidIndex) {
+  return isPrimaryDisciplineName(disciplina) ? priceForIndex(paidIndex) : 0;
+}
+
 function totalForCount(n) {
   let total = 0;
   for (let i = 0; i < n; i++) total += priceForIndex(i);
@@ -594,6 +622,46 @@ function toJsDate(v) {
   return typeof v.toDate === "function" ? v.toDate() : new Date(v);
 }
 
+function timeToMinutes(hhmm) {
+  const [h, m] = hhmm.split(":").map(Number);
+  return h * 60 + m;
+}
+
+function minutesToTime(total) {
+  const h = String(Math.floor(total / 60)).padStart(2, "0");
+  const m = String(total % 60).padStart(2, "0");
+  return `${h}:${m}`;
+}
+
+function buildQuarterSlots(start, end) {
+  const result = [];
+  const startMin = timeToMinutes(start);
+  const endMin = timeToMinutes(end);
+
+  for (let t = startMin; t < endMin; t += 15) {
+    result.push(minutesToTime(t));
+  }
+
+  return result;
+}
+
+async function getPhotoGlobalSettings() {
+  const ref = doc(db, "photoSettings", PHOTO_SETTINGS_DOC_ID);
+  const snap = await getDoc(ref);
+
+  if (!snap.exists()) {
+    await setDoc(ref, { isOpen: true });
+    return { isOpen: true };
+  }
+
+  return snap.data();
+}
+
+async function setPhotoGlobalOpenState(isOpen) {
+  const ref = doc(db, "photoSettings", PHOTO_SETTINGS_DOC_ID);
+  await setDoc(ref, { isOpen }, { merge: true });
+}
+
 async function updatePriceHeader() {
   const el = document.getElementById("priceSummary");
   if (!el) return;
@@ -601,11 +669,25 @@ async function updatePriceHeader() {
   const user = auth.currentUser;
   if (!user) { el.innerHTML = ""; return; }
 
-  const snap = await getDocs(query(collection(db, "reservations"), where("userId", "==", user.uid)));
-  const n = snap.size; // waitlist no compta perquè no mirem waitlist
+  const snap = await getDocs(
+    query(collection(db, "reservations"), where("userId", "==", user.uid))
+  );
 
-  const total = totalForCount(n);
-  const next = priceForIndex(n);
+  let paidReservationsCount = 0;
+
+  for (const resDoc of snap.docs) {
+    const r = resDoc.data();
+    const activitySnap = await getDoc(doc(db, "activities", r.activityId));
+    if (!activitySnap.exists()) continue;
+
+    const a = activitySnap.data();
+    if (isPrimaryDisciplineName(a.disciplina)) {
+      paidReservationsCount++;
+    }
+  }
+
+  const total = totalForCount(paidReservationsCount);
+  const next = priceForIndex(paidReservationsCount);
 
   el.innerHTML = `
   <div class="price-main">
@@ -622,6 +704,28 @@ async function updatePriceHeader() {
     <span>Pack 3: 60€</span>
   </div>
 `;
+}
+
+async function ensurePhotoTimeSlotsSeeded() {
+  const existingSnap = await getDocs(collection(db, "photoTimeSlots"));
+  if (!existingSnap.empty) return;
+
+  for (const day of PHOTO_DAYS) {
+    for (let t = timeToMinutes(day.start); t < timeToMinutes(day.end); t += 15) {
+      const time = minutesToTime(t);
+      const hourStart = Math.floor(t / 60) * 60;
+      const hourLabel = minutesToTime(hourStart);
+
+      await addDoc(collection(db, "photoTimeSlots"), {
+        dateKey: day.key,
+        time,
+        hourLabel,
+        visible: true,
+        isOpen: true,
+        createdAt: new Date()
+      });
+    }
+  }
 }
 
 // ==========================
@@ -691,13 +795,17 @@ async function loadMyReservations() {
     query(collection(db, "reservations"), where("userId", "==", user.uid))
   );
 
+  const photoBookingsSnap = await getDocs(
+    query(collection(db, "photoTimeBookings"), where("userId", "==", user.uid))
+  );
+
   const resDocs = reservationsSnap.docs.slice().sort((a,b) => {
     const da = toJsDate(a.data().createdAt) || new Date(0);
     const db = toJsDate(b.data().createdAt) || new Date(0);
     return da - db;
   });
 
-  if (resDocs.length === 0) {
+  if (resDocs.length === 0 && photoBookingsSnap.empty) {
     contentArea.innerHTML = "<p>No tens cap reserva.</p>";
     return;
   }
@@ -705,14 +813,21 @@ async function loadMyReservations() {
   const grid = document.createElement("div");
   grid.className = "master-grid reservations-grid";
 
-  for (const [idx, resDoc] of resDocs.entries()) {
-    const unitPrice = priceForIndex(idx);
+  let paidIndex = 0;
+
+  for (const resDoc of resDocs) {
     const resData = resDoc.data();
 
     const activitySnap = await getDoc(doc(db, "activities", resData.activityId));
     if (!activitySnap.exists()) continue;
 
     const a = activitySnap.data();
+
+    const unitPrice = getActivityPriceByDiscipline(a.disciplina, paidIndex);
+
+    if (isPrimaryDisciplineName(a.disciplina)) {
+      paidIndex++;
+    }
 
     // data robusta
     const rawDate = a.date ?? a.data;
@@ -803,6 +918,80 @@ async function loadMyReservations() {
     grid.appendChild(card);
   }
 
+  for (const photoDoc of photoBookingsSnap.docs) {
+  const p = photoDoc.data();
+
+  const photoCard = document.createElement("div");
+  photoCard.className = "master-card reservation-card photo-reservation-card";
+
+  const dayLabel =
+    p.dateKey === "2026-03-27" ? "27 març" :
+    p.dateKey === "2026-03-28" ? "28 març" :
+    p.dateKey === "2026-03-29" ? "29 març" :
+    p.dateKey;
+
+  photoCard.innerHTML = `
+    <div class="master-discipline">Fotografia d'estudi</div>
+    <div class="master-professor">${(p.category || "-").toUpperCase()}</div>
+
+    <div class="master-info">
+      <div class="master-info-item">
+        <span>Dia</span>
+        <strong>${dayLabel}</strong>
+      </div>
+
+      <div class="master-info-item">
+        <span>Hora</span>
+        <strong>${p.time || "-"}</strong>
+      </div>
+
+      <div class="master-info-item">
+        <span>Categoria</span>
+        <strong>${p.category || "-"}</strong>
+      </div>
+
+      <div class="master-info-item">
+        <span>Preu</span>
+        <strong>${p.price ?? 0}€</strong>
+      </div>
+    </div>
+
+    <div class="master-footer">
+      <div class="reservation-status pending">
+        ⏳ Pendent de pagament. S’ha d’abonar en efectiu el dia de la Sessió Fotogràfica
+      </div>
+
+      <button class="btn master-btn cancel-photo-btn">Cancel·lar</button>
+    </div>
+  `;
+
+  const cancelPhotoBtn = photoCard.querySelector(".cancel-photo-btn");
+  cancelPhotoBtn.addEventListener("click", async () => {
+    cancelPhotoBtn.disabled = true;
+    cancelPhotoBtn.textContent = "Cancel·lant...";
+
+    const ok = await cancelPhotoTimeBooking(photoDoc.id);
+
+    if (ok) {
+      showToast("Reserva de fotografia cancel·lada ✅", "success");
+      photoCard.classList.add("fade-out");
+
+      setTimeout(() => {
+        photoCard.remove();
+
+        if (!grid.querySelector(".reservation-card")) {
+          contentArea.innerHTML = "<p>No tens cap reserva.</p>";
+        }
+      }, 280);
+    } else {
+      cancelPhotoBtn.disabled = false;
+      cancelPhotoBtn.textContent = "Cancel·lar";
+    }
+  });
+
+  grid.appendChild(photoCard);
+}
+
   contentArea.appendChild(grid);
 }
 
@@ -825,7 +1014,7 @@ if (tabButtons.length > 0) {
       if (tab === "master") {
         loadActivitiesByType("master");
       } else if (tab === "foto") {
-        loadActivitiesByType("foto");
+        loadPhotoStudioGrid();
       } else if (tab === "reserves") {
         loadMyReservations();
       }
@@ -1037,17 +1226,340 @@ async function joinWaitlist(activityId) {
   }
 }
 
-async function leaveWaitlist(waitlistId) {
+async function getMyPhotoTimeBookingMap() {
   const user = auth.currentUser;
-  if (!user) return false;
+  const map = new Map(); // slotId -> bookingDocId
+  if (!user) return map;
+
+  const snap = await getDocs(
+    query(collection(db, "photoTimeBookings"), where("userId", "==", user.uid))
+  );
+
+  snap.forEach((d) => {
+    const b = d.data();
+    if (b?.slotId) map.set(b.slotId, d.id);
+  });
+
+  return map;
+}
+
+async function reservePhotoTimeSlot(slotId, category) {
+  const user = auth.currentUser;
+  if (!user) {
+    showToast("Has d'iniciar sessió.", "error");
+    return false;
+  }
+
+  const photoSettings = await getPhotoGlobalSettings();
+  if (photoSettings.isOpen === false) {
+    showToast("Les reserves de fotografia estan tancades.", "error");
+    return false;
+  }
 
   try {
-    await deleteDoc(doc(db, "waitlist", waitlistId));
+    const slotSnap = await getDoc(doc(db, "photoTimeSlots", slotId));
+    if (!slotSnap.exists()) {
+      showToast("Aquesta franja ja no existeix.", "error");
+      return false;
+    }
+
+    const slotData = slotSnap.data();
+
+    if (slotData.isOpen === false || slotData.visible === false) {
+      showToast("Aquesta franja no està disponible.", "error");
+      return false;
+    }
+
+    const existingForSlot = await getDocs(
+      query(collection(db, "photoTimeBookings"), where("slotId", "==", slotId))
+    );
+
+    if (!existingForSlot.empty) {
+      showToast("Aquesta franja ja està reservada.", "error");
+      return false;
+    }
+
+    await addDoc(collection(db, "photoTimeBookings"), {
+      userId: user.uid,
+      userEmail: user.email,
+      slotId,
+      dateKey: slotData.dateKey,
+      time: slotData.time,
+      hourLabel: slotData.hourLabel,
+      category,
+      price: PHOTO_PRICES[category] || 0,
+      createdAt: new Date()
+    });
+
     return true;
   } catch (err) {
     console.error(err);
-    showToast("No s'ha pogut sortir de la llista.", "error");
+    showToast("No s'ha pogut reservar la sessió de foto.", "error");
     return false;
+  }
+}
+
+async function cancelPhotoTimeBooking(bookingId) {
+  try {
+    await deleteDoc(doc(db, "photoTimeBookings", bookingId));
+    return true;
+  } catch (err) {
+    console.error(err);
+    showToast("No s'ha pogut cancel·lar la reserva de fotografia.", "error");
+    return false;
+  }
+}
+
+function ensurePhotoReserveModal() {
+  let modal = document.getElementById("photoReserveModal");
+  if (modal) return modal;
+
+  modal = document.createElement("div");
+  modal.id = "photoReserveModal";
+  modal.className = "modal-overlay";
+  modal.innerHTML = `
+    <div class="modal-card">
+      <div class="modal-head">
+        <div>
+          <h3>Reservar fotografia d'estudi</h3>
+          <p>Selecciona categoria i franja de 15 minuts</p>
+        </div>
+        <button type="button" class="modal-close" aria-label="Tancar">×</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="photo-modal-summary" id="photoModalSummary"></div>
+
+        <div class="photo-modal-field">
+          <label for="photoCategorySelect">Categoria</label>
+          <select id="photoCategorySelect">
+            <option value="solo">Solo</option>
+            <option value="duo">Duo</option>
+            <option value="trio">Trio</option>
+          </select>
+        </div>
+
+        <div class="photo-modal-field">
+          <label for="photoQuarterSelect">Franja</label>
+          <select id="photoQuarterSelect"></select>
+        </div>
+
+        <div class="photo-modal-price" id="photoModalPrice"></div>
+
+        <div class="modal-actions">
+          <button type="button" class="btn primary" id="confirmPhotoReserveBtn">Reservar</button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(modal);
+
+  const close = () => modal.classList.remove("show");
+
+  modal.addEventListener("click", (e) => {
+    if (e.target === modal) close();
+  });
+
+  modal.querySelector(".modal-close").addEventListener("click", close);
+
+  return modal;
+}
+
+function fillPhotoQuarterOptions(selectEl, slotDocs) {
+  selectEl.innerHTML = "";
+
+  slotDocs.forEach((slotDoc) => {
+    const slot = slotDoc.data();
+    const option = document.createElement("option");
+    option.value = slotDoc.id;
+    option.textContent = `${slot.time} - ${minutesToTime(timeToMinutes(slot.time) + 15)}`;
+    selectEl.appendChild(option);
+  });
+}
+
+function updatePhotoModalPrice(categorySelect, priceEl) {
+  const value = categorySelect.value;
+  priceEl.innerHTML = `Preu: <strong>${PHOTO_PRICES[value] || 0}€</strong>`;
+}
+
+function openPhotoReserveModal(dayLabel, hourLabel, slotDocs) {
+  const modal = ensurePhotoReserveModal();
+
+  const summaryEl = modal.querySelector("#photoModalSummary");
+  const categorySelect = modal.querySelector("#photoCategorySelect");
+  const quarterSelect = modal.querySelector("#photoQuarterSelect");
+  const priceEl = modal.querySelector("#photoModalPrice");
+  const confirmBtn = modal.querySelector("#confirmPhotoReserveBtn");
+
+  summaryEl.innerHTML = `
+    <strong>${dayLabel}</strong><br>
+    Hora seleccionada: <strong>${hourLabel} - ${minutesToTime(timeToMinutes(hourLabel) + 60)}</strong>
+  `;
+
+  fillPhotoQuarterOptions(quarterSelect, slotDocs);
+  updatePhotoModalPrice(categorySelect, priceEl);
+
+  categorySelect.onchange = () => {
+    updatePhotoModalPrice(categorySelect, priceEl);
+  };
+
+  confirmBtn.onclick = async () => {
+    const slotId = quarterSelect.value;
+    const category = categorySelect.value;
+
+    confirmBtn.disabled = true;
+
+    const ok = await reservePhotoTimeSlot(slotId, category);
+
+    if (ok) {
+      modal.classList.remove("show");
+      showToast("Sessió de foto reservada ✅", "success");
+      loadPhotoStudioGrid();
+    } else {
+      confirmBtn.disabled = false;
+    }
+  };
+
+  requestAnimationFrame(() => modal.classList.add("show"));
+}
+
+async function loadPhotoStudioGrid() {
+  if (!contentArea) return;
+
+  contentArea.innerHTML = "";
+
+  await ensurePhotoTimeSlotsSeeded();
+
+  const photoSettings = await getPhotoGlobalSettings();
+
+  const myBookingMap = await getMyPhotoTimeBookingMap();
+
+  const wrapper = document.createElement("div");
+  wrapper.className = "photo-timetable-wrapper";
+
+  wrapper.innerHTML = `
+    <div class="photo-timetable-intro">
+      <h2>Fotografia d'estudi</h2>
+      <p>
+        ${photoSettings.isOpen === false
+          ? "Les reserves de fotografia estan actualment tancades."
+          : "Selecciona una hora i prem el botó + per escollir categoria i quart d'hora."}
+      </p>
+      <div class="photo-price-legend">
+        <span>Solo: <strong>${PHOTO_PRICES.solo}€</strong></span>
+        <span>Duo: <strong>${PHOTO_PRICES.duo}€</strong></span>
+        <span>Trio: <strong>${PHOTO_PRICES.trio}€</strong></span>
+      </div>
+    </div>
+
+    <div class="photo-timetable" id="photoTimetable"></div>
+  `;
+
+  contentArea.appendChild(wrapper);
+
+  const timetable = wrapper.querySelector("#photoTimetable");
+
+  const allSlotsSnap = await getDocs(collection(db, "photoTimeSlots"));
+  const allBookingsSnap = await getDocs(collection(db, "photoTimeBookings"));
+
+  const bookedSlotIds = new Set();
+  allBookingsSnap.forEach((d) => {
+    const b = d.data();
+    if (b?.slotId) bookedSlotIds.add(b.slotId);
+  });
+
+  for (const day of PHOTO_DAYS) {
+    const dayColumn = document.createElement("div");
+    dayColumn.className = "photo-day-column";
+
+    dayColumn.innerHTML = `
+      <div class="photo-day-header">${day.label}</div>
+    `;
+
+    const hours = [];
+    for (let t = timeToMinutes(day.start); t < timeToMinutes(day.end); t += 60) {
+      hours.push(minutesToTime(t));
+    }
+
+    for (const hour of hours) {
+      const hourSlotDocs = allSlotsSnap.docs
+        .filter((docSnap) => {
+          const s = docSnap.data();
+          return s.dateKey === day.key && s.hourLabel === hour;
+        })
+        .sort((a, b) => a.data().time.localeCompare(b.data().time));
+
+      const freeSlots = hourSlotDocs.filter((slotDoc) => {
+        const slot = slotDoc.data();
+        return !bookedSlotIds.has(slotDoc.id) && slot.visible !== false && slot.isOpen !== false;
+      });
+
+      const reservedCount = hourSlotDocs.length - freeSlots.length;
+      const myCount = hourSlotDocs.filter(slotDoc => myBookingMap.has(slotDoc.id)).length;
+
+      const quarterHtml = hourSlotDocs.map((slotDoc) => {
+      const slot = slotDoc.data();
+      const isMine = myBookingMap.has(slotDoc.id);
+      const isTaken = bookedSlotIds.has(slotDoc.id);
+      const isClosed = slot.visible === false || slot.isOpen === false;
+
+      let cls = "free";
+      let label = "Lliure";
+
+      if (isMine) {
+        cls = "mine";
+        label = "La meva";
+      } else if (isClosed) {
+        cls = "closed";
+        label = "Tancada";
+      } else if (isTaken) {
+        cls = "taken";
+        label = "Reservada";
+      }
+
+      return `
+        <div class="photo-quarter-pill ${cls}">
+          <span>${slot.time}</span>
+          <small>${label}</small>
+        </div>
+      `;
+    }).join("");
+
+      const card = document.createElement("div");
+      card.className = "photo-hour-card";
+
+      if (freeSlots.length === 0) card.classList.add("full");
+      if (myCount > 0) card.classList.add("mine");
+
+      card.innerHTML = `
+        <div class="photo-hour-title">${hour} - ${minutesToTime(timeToMinutes(hour) + 60)}</div>
+        <div class="photo-hour-meta">
+          <span>Lliures: <strong>${freeSlots.length}/4</strong></span>
+          <span>Reservades: <strong>${reservedCount}/4</strong></span>
+        </div>
+
+        <div class="photo-quarter-grid">
+          ${quarterHtml}
+        </div>
+
+        <button class="photo-add-btn" type="button">+</button>
+      `;
+
+      const addBtn = card.querySelector(".photo-add-btn");
+
+      if (freeSlots.length === 0 || photoSettings.isOpen === false) {
+        addBtn.disabled = true;
+      } else {
+        addBtn.addEventListener("click", () => {
+          openPhotoReserveModal(day.label, hour, freeSlots);
+        });
+      }
+
+      dayColumn.appendChild(card);
+    }
+
+    timetable.appendChild(dayColumn);
   }
 }
 
@@ -1084,11 +1596,23 @@ async function loadActivitiesByType(type) {
 
     grid.className = "master-grid";
 
-    const nextPrice = priceForIndex(myResMap.size);
+    let paidReservationsCount = 0;
+
+    for (const activityId of myResMap.keys()) {
+      const activitySnap = await getDoc(doc(db, "activities", activityId));
+      if (!activitySnap.exists()) continue;
+
+      const a = activitySnap.data();
+      if (isPrimaryDisciplineName(a.disciplina)) {
+        paidReservationsCount++;
+      }
+    }
 
     for (const docSnap of snapshot.docs) {
     const data = docSnap.data();
     const disc = (data.disciplina || "Altres").trim();
+
+    const cardPrice = getActivityPriceByDiscipline(disc, paidReservationsCount);
 
     if (activeDiscFilter !== "all") {
       const isPrimary = PRIMARY_DISCS.has(disc);
@@ -1141,7 +1665,7 @@ async function loadActivitiesByType(type) {
           ${data.spots_remaining} places disponibles
         </div>
         <div class="master-price">
-          Preu: <strong>${nextPrice}€</strong>
+          Preu: <strong>${cardPrice}€</strong>
         </div>
         <div class="waitlist-counter"></div>
         <button class="btn master-btn">Reservar</button>
@@ -1307,6 +1831,7 @@ adminTabs.forEach(tab => {
     if (target) target.classList.add("active");
 
     if (view === "manage") await loadAdminActivities();
+    if (view === "photos") await loadAdminPhotoBookingsView();
     if (view === "waitlist") await loadAdminWaitlists();
   });
 });
@@ -1624,6 +2149,262 @@ async function loadAdminWaitlists() {
   }
 }
 
+async function loadAdminPhotoBookings(container) {
+  const bookingsSnap = await getDocs(collection(db, "photoTimeBookings"));
+
+  if (bookingsSnap.empty) {
+    const empty = document.createElement("div");
+    empty.className = "admin-activity-card";
+    empty.innerHTML = `<div class="admin-activity-title">Fotografia d'estudi</div><p>No hi ha reserves de fotografia.</p>`;
+    container.appendChild(empty);
+    return;
+  }
+
+  const card = document.createElement("div");
+  card.className = "admin-activity-card";
+
+  card.innerHTML = `
+    <div class="admin-activity-header">
+      <div class="admin-activity-title">Fotografia d'estudi</div>
+      <div class="admin-activity-meta">Reserves de fotografia</div>
+    </div>
+    <div class="admin-participants">
+      <h4>Reserves</h4>
+      <ul id="adminPhotoBookingsList"></ul>
+    </div>
+  `;
+
+  container.appendChild(card);
+
+  const list = card.querySelector("#adminPhotoBookingsList");
+
+  const docs = bookingsSnap.docs.slice().sort((a, b) => {
+    const da = toJsDate(a.data().createdAt) || new Date(0);
+    const db = toJsDate(b.data().createdAt) || new Date(0);
+    return da - db;
+  });
+
+  for (const bookingDoc of docs) {
+    const p = bookingDoc.data();
+
+    const userSnap = await getDoc(doc(db, "users", p.userId));
+    const u = userSnap.exists() ? userSnap.data() : null;
+
+    const li = document.createElement("li");
+    li.className = "admin-participant-item";
+
+    const dateLabel =
+      p.dateKey === "2026-03-27" ? "27 març" :
+      p.dateKey === "2026-03-28" ? "28 març" :
+      p.dateKey === "2026-03-29" ? "29 març" :
+      p.dateKey;
+
+    const created = toJsDate(p.createdAt);
+    const createdStr = created ? created.toLocaleString("ca-ES") : "-";
+
+    const slotEnd = p.time ? minutesToTime(timeToMinutes(p.time) + 15) : "-";
+
+    const nameSpan = document.createElement("span");
+    nameSpan.innerHTML = `
+      <strong>${u ? `${u.nom} ${u.cognoms}` : "Usuari"}</strong><br>
+      <small>${dateLabel} · ${p.time} - ${slotEnd} · ${p.category} · ${p.price ?? 0}€</small><br>
+      <small>Reserva feta: ${createdStr}</small>
+    `;
+
+    const removeBtn = document.createElement("button");
+    removeBtn.className = "admin-remove-participant-btn";
+    removeBtn.type = "button";
+    removeBtn.title = "Esborrar reserva de fotografia";
+    removeBtn.innerHTML = "🗑";
+
+    removeBtn.addEventListener("click", async () => {
+      const ok = confirm("Segur que vols esborrar aquesta reserva de fotografia?");
+      if (!ok) return;
+
+      removeBtn.disabled = true;
+
+      const done = await cancelPhotoTimeBooking(bookingDoc.id);
+
+      if (done) {
+        showToast("Reserva de fotografia esborrada ✅", "success");
+        loadAdminActivities();
+      } else {
+        removeBtn.disabled = false;
+      }
+    });
+
+    li.appendChild(nameSpan);
+    li.appendChild(removeBtn);
+    list.appendChild(li);
+  }
+}
+
+async function loadAdminPhotoBookingsView() {
+  const container = document.getElementById("adminPhotoBookingsGrid");
+  if (!container) return;
+
+  container.innerHTML = "";
+
+  const settings = await getPhotoGlobalSettings();
+
+  // Card de control global
+  const settingsCard = document.createElement("div");
+  settingsCard.className = "admin-activity-card";
+
+  settingsCard.innerHTML = `
+    <div class="admin-activity-header">
+      <div>
+        <div class="admin-activity-title">Configuració global de fotografies</div>
+        <div class="admin-activity-meta">Activar o desactivar totes les reserves de fotografia</div>
+      </div>
+      <div class="admin-activity-toggle">
+        <label class="toggle-switch">
+          <input type="checkbox" id="photoGlobalOpenCheckbox" ${settings.isOpen !== false ? "checked" : ""}>
+          <span class="slider"></span>
+          <span class="toggle-label">Activar / Desactivar</span>
+        </label>
+      </div>
+    </div>
+  `;
+
+  container.appendChild(settingsCard);
+
+  const globalCheckbox = settingsCard.querySelector("#photoGlobalOpenCheckbox");
+  if (globalCheckbox) {
+    globalCheckbox.addEventListener("change", async () => {
+      await setPhotoGlobalOpenState(globalCheckbox.checked);
+      showToast(
+        globalCheckbox.checked
+          ? "Reserves de fotografia activades"
+          : "Reserves de fotografia desactivades",
+        "success"
+      );
+    });
+  }
+
+  const bookingsSnap = await getDocs(collection(db, "photoTimeBookings"));
+
+  if (bookingsSnap.empty) {
+    const empty = document.createElement("div");
+    empty.className = "admin-activity-card";
+    empty.innerHTML = `
+      <div class="admin-activity-title">Fotografia d'estudi</div>
+      <p>No hi ha reserves de fotografia.</p>
+    `;
+    container.appendChild(empty);
+    return;
+  }
+
+  const grouped = new Map(); // dateKey -> hourLabel -> bookings[]
+
+  for (const bookingDoc of bookingsSnap.docs) {
+    const p = bookingDoc.data();
+    const dateKey = p.dateKey || "sense-data";
+    const hourLabel = p.time ? minutesToTime(Math.floor(timeToMinutes(p.time) / 60) * 60) : "00:00";
+
+    if (!grouped.has(dateKey)) grouped.set(dateKey, new Map());
+    if (!grouped.get(dateKey).has(hourLabel)) grouped.get(dateKey).set(hourLabel, []);
+
+    grouped.get(dateKey).get(hourLabel).push({
+      id: bookingDoc.id,
+      ...p
+    });
+  }
+
+  const orderedDays = ["2026-03-27", "2026-03-28", "2026-03-29"];
+
+  for (const dayKey of orderedDays) {
+    if (!grouped.has(dayKey)) continue;
+
+    const dayMap = grouped.get(dayKey);
+
+    const dayCard = document.createElement("div");
+    dayCard.className = "admin-activity-card";
+
+    const dayLabel =
+      dayKey === "2026-03-27" ? "27 març" :
+      dayKey === "2026-03-28" ? "28 març" :
+      dayKey === "2026-03-29" ? "29 març" :
+      dayKey;
+
+    dayCard.innerHTML = `
+      <div class="admin-activity-header">
+        <div class="admin-activity-title">Fotografia d'estudi · ${dayLabel}</div>
+        <div class="admin-activity-meta">Reserves agrupades per hora</div>
+      </div>
+      <div class="admin-photo-hour-groups" id="photo-groups-${dayKey}"></div>
+    `;
+
+    container.appendChild(dayCard);
+
+    const groupContainer = dayCard.querySelector(`#photo-groups-${dayKey}`);
+    const orderedHours = Array.from(dayMap.keys()).sort((a, b) => a.localeCompare(b));
+
+    for (const hour of orderedHours) {
+      const bookings = dayMap.get(hour).sort((a, b) => (a.time || "").localeCompare(b.time || ""));
+
+      const hourBlock = document.createElement("div");
+      hourBlock.className = "admin-photo-hour-block";
+
+      const hourEnd = minutesToTime(timeToMinutes(hour) + 60);
+
+      hourBlock.innerHTML = `
+        <div class="admin-photo-hour-title">${hour} - ${hourEnd}</div>
+        <ul class="admin-photo-hour-list"></ul>
+      `;
+
+      const ul = hourBlock.querySelector(".admin-photo-hour-list");
+
+      for (const p of bookings) {
+        const userSnap = await getDoc(doc(db, "users", p.userId));
+        const u = userSnap.exists() ? userSnap.data() : null;
+
+        const created = toJsDate(p.createdAt);
+        const createdStr = created ? created.toLocaleString("ca-ES") : "-";
+        const slotEnd = p.time ? minutesToTime(timeToMinutes(p.time) + 15) : "-";
+
+        const li = document.createElement("li");
+        li.className = "admin-participant-item";
+
+        const info = document.createElement("span");
+        info.innerHTML = `
+          <strong>${u ? `${u.nom} ${u.cognoms}` : "Usuari"}</strong><br>
+          <small>${p.time} - ${slotEnd} · ${p.category} · ${p.price ?? 0}€</small><br>
+          <small>Reserva feta: ${createdStr}</small>
+        `;
+
+        const removeBtn = document.createElement("button");
+        removeBtn.className = "admin-remove-participant-btn";
+        removeBtn.type = "button";
+        removeBtn.title = "Esborrar reserva de fotografia";
+        removeBtn.innerHTML = "🗑";
+
+        removeBtn.addEventListener("click", async () => {
+          const ok = confirm("Segur que vols esborrar aquesta reserva de fotografia?");
+          if (!ok) return;
+
+          removeBtn.disabled = true;
+
+          const done = await cancelPhotoTimeBooking(p.id);
+
+          if (done) {
+            showToast("Reserva de fotografia esborrada ✅", "success");
+            loadAdminPhotoBookingsView();
+          } else {
+            removeBtn.disabled = false;
+          }
+        });
+
+        li.appendChild(info);
+        li.appendChild(removeBtn);
+        ul.appendChild(li);
+      }
+
+      groupContainer.appendChild(hourBlock);
+    }
+  }
+}
+
 async function renderWaitlistUsers(items) {
   let html = "";
 
@@ -1724,13 +2505,17 @@ function openPaymentModal(paymentRef) {
   requestAnimationFrame(() => modal.classList.add("show"));
 }
 
-const exportBtn = document.getElementById("exportExcelBtn");
-
-if (exportBtn) {
-  exportBtn.addEventListener("click", exportReservationsToExcel);
+const exportMasterBtn = document.getElementById("exportMasterExcelBtn");
+if (exportMasterBtn) {
+  exportMasterBtn.addEventListener("click", exportMasterReservationsToExcel);
 }
 
-async function exportReservationsToExcel() {
+const exportPhotoBtn = document.getElementById("exportPhotoExcelBtn");
+if (exportPhotoBtn) {
+  exportPhotoBtn.addEventListener("click", exportPhotoReservationsToExcel);
+}
+
+async function exportMasterReservationsToExcel() {
 
   showToast("Generant Excel...", "success");
 
@@ -1776,7 +2561,53 @@ async function exportReservationsToExcel() {
   downloadCSV(rows);
 }
 
-function downloadCSV(data) {
+async function exportPhotoReservationsToExcel() {
+  showToast("Generant Excel de fotografies...", "success");
+
+  const bookingsSnap = await getDocs(collection(db, "photoTimeBookings"));
+
+  if (bookingsSnap.empty) {
+    showToast("No hi ha reserves de fotografia.", "error");
+    return;
+  }
+
+  const rows = [];
+
+  for (const bookingDoc of bookingsSnap.docs) {
+    const p = bookingDoc.data();
+
+    const userSnap = await getDoc(doc(db, "users", p.userId));
+    const u = userSnap.exists() ? userSnap.data() : {};
+
+    const created = toJsDate(p.createdAt);
+    const createdStr = created ? created.toLocaleString("ca-ES") : "";
+
+    const slotEnd = p.time ? minutesToTime(timeToMinutes(p.time) + 15) : "";
+
+    const dateLabel =
+      p.dateKey === "2026-03-27" ? "27 març" :
+      p.dateKey === "2026-03-28" ? "28 març" :
+      p.dateKey === "2026-03-29" ? "29 març" :
+      p.dateKey;
+
+    rows.push({
+      Nom: u.nom || "",
+      Cognoms: u.cognoms || "",
+      Email: u.email || "",
+      Escola: u.escola || "",
+      Dia: dateLabel,
+      HoraInici: p.time || "",
+      HoraFi: slotEnd,
+      Categoria: p.category || "",
+      Preu: p.price ?? 0,
+      ReservaFeta: createdStr
+    });
+  }
+
+  downloadCSV(rows, "fotografies_estudi_capital_dance_vic.csv");
+}
+
+function downloadCSV(data, filename = "export.csv") {
 
   const headers = Object.keys(data[0]);
   const csvRows = [];
@@ -1796,7 +2627,7 @@ function downloadCSV(data) {
 
   const a = document.createElement("a");
   a.href = url;
-  a.download = "reserves_capital_dance_vic.csv";
+  a.download = filename;
   a.click();
 
   URL.revokeObjectURL(url);
