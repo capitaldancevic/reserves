@@ -1447,3 +1447,387 @@ input:focus {
   .discipline-filter-bar::-webkit-scrollbar{ display:none; }
   .disc-filter-btn{ flex: 0 0 auto; white-space: nowrap; }
 }
+
+/* =============================
+   PHOTO STUDIO
+============================= */
+
+.photo-studio-wrapper{
+  display:flex;
+  flex-direction:column;
+  gap:24px;
+}
+
+.photo-toolbar{
+  background:#fff;
+  border-radius:16px;
+  padding:18px;
+  box-shadow:0 8px 22px rgba(0,0,0,0.06);
+  display:flex;
+  flex-wrap:wrap;
+  gap:20px;
+  align-items:flex-end;
+  justify-content:space-between;
+}
+
+.photo-toolbar-block{
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+
+.photo-toolbar-label{
+  font-size:13px;
+  font-weight:700;
+  color:#555;
+  text-transform:uppercase;
+  letter-spacing:0.5px;
+}
+
+.photo-day-filters,
+.photo-type-filters{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+}
+
+.photo-filter-btn{
+  border:1px solid #e5e7eb;
+  background:#fff;
+  padding:8px 14px;
+  border-radius:999px;
+  font-weight:700;
+  cursor:pointer;
+  transition:0.2s ease;
+}
+
+.photo-filter-btn.active{
+  background:#cb0076;
+  border-color:#cb0076;
+  color:#fff;
+}
+
+.photo-price-box{
+  background:#faf5ff;
+  border:1px solid #f3d5ea;
+  padding:10px 14px;
+  border-radius:14px;
+  font-weight:600;
+}
+
+.photo-grid{
+  display:grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap:16px;
+}
+
+.photo-slot-card{
+  background:#fff;
+  border-radius:16px;
+  padding:16px;
+  box-shadow:0 8px 20px rgba(0,0,0,0.06);
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+  border-left:5px solid #ddd;
+}
+
+.photo-slot-time{
+  font-size:1.15rem;
+  font-weight:800;
+  color:#0F1A2F;
+}
+
+.photo-slot-type{
+  font-size:0.8rem;
+  font-weight:700;
+  color:#666;
+  letter-spacing:0.5px;
+}
+
+.photo-slot-price{
+  font-size:0.95rem;
+  font-weight:700;
+  color:#cb0076;
+}
+
+.photo-slot-btn{
+  width:100%;
+}
+
+.photo-slot-card.free{
+  border-left-color:#cb0076;
+}
+
+.photo-slot-card.taken{
+  border-left-color:#9ca3af;
+  opacity:0.78;
+}
+
+.photo-slot-card.mine{
+  border-left-color:#16a34a;
+  background:#f0fdf4;
+}
+
+.photo-slot-card.closed{
+  border-left-color:#ef4444;
+  background:#fef2f2;
+  opacity:0.75;
+}
+
+@media (max-width: 1000px){
+  .photo-grid{
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 700px){
+  .photo-grid{
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 520px){
+  .photo-grid{
+    grid-template-columns: 1fr;
+  }
+
+  .photo-toolbar{
+    align-items:stretch;
+  }
+}
+
+/* =============================
+   PHOTO TIMETABLE
+============================= */
+
+.photo-timetable-wrapper{
+  display:flex;
+  flex-direction:column;
+  gap:24px;
+}
+
+.photo-timetable-intro{
+  background:#fff;
+  border-radius:16px;
+  padding:20px;
+  box-shadow:0 8px 22px rgba(0,0,0,0.06);
+}
+
+.photo-timetable-intro h2{
+  margin-bottom:6px;
+  color:#0F1A2F;
+}
+
+.photo-timetable-intro p{
+  color:#666;
+  margin-bottom:12px;
+}
+
+.photo-price-legend{
+  display:flex;
+  gap:16px;
+  flex-wrap:wrap;
+  font-size:14px;
+}
+
+.photo-timetable{
+  display:grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap:20px;
+  align-items:start;
+}
+
+.photo-day-column{
+  display:flex;
+  flex-direction:column;
+  gap:14px;
+}
+
+.photo-day-header{
+  background:#cb0076;
+  color:#fff;
+  font-weight:800;
+  padding:12px 16px;
+  border-radius:14px;
+  text-align:center;
+  box-shadow:0 6px 16px rgba(203, 0, 118, 0.22);
+}
+
+.photo-hour-card{
+  background:#fff;
+  border-radius:16px;
+  padding:16px;
+  box-shadow:0 8px 20px rgba(0,0,0,0.06);
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+  border-left:5px solid #cb0076;
+}
+
+.photo-hour-card.full{
+  border-left-color:#9ca3af;
+  opacity:0.78;
+}
+
+.photo-hour-card.mine{
+  border-left-color:#16a34a;
+  background:#f0fdf4;
+}
+
+.photo-hour-title{
+  font-weight:800;
+  color:#0F1A2F;
+}
+
+.photo-hour-meta{
+  display:flex;
+  justify-content:space-between;
+  gap:10px;
+  font-size:13px;
+  color:#555;
+  flex-wrap:wrap;
+}
+
+.photo-quarter-grid{
+  display:grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap:8px;
+}
+
+.photo-quarter-pill{
+  border-radius:10px;
+  padding:8px 10px;
+  font-size:12px;
+  display:flex;
+  flex-direction:column;
+  gap:2px;
+  border:1px solid #eee;
+  background:#fff;
+}
+
+.photo-quarter-pill span{
+  font-weight:700;
+}
+
+.photo-quarter-pill small{
+  opacity:.75;
+}
+
+.photo-quarter-pill.free{
+  border-color:#f3d5ea;
+  background:#fff;
+}
+
+.photo-quarter-pill.taken{
+  background:#f3f4f6;
+  color:#6b7280;
+}
+
+.photo-quarter-pill.mine{
+  background:#f0fdf4;
+  border-color:#86efac;
+  color:#166534;
+}
+
+.photo-quarter-pill.closed{
+  background:#fef2f2;
+  border-color:#fecaca;
+  color:#991b1b;
+}
+
+.photo-add-btn{
+  width:44px;
+  height:44px;
+  border:none;
+  border-radius:999px;
+  background:#cb0076;
+  color:#fff;
+  font-size:28px;
+  font-weight:700;
+  cursor:pointer;
+  align-self:flex-end;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+
+.photo-add-btn:disabled{
+  background:#d1d5db;
+  cursor:not-allowed;
+}
+
+.photo-modal-summary{
+  background:#faf9fc;
+  border-radius:12px;
+  padding:12px;
+  margin-bottom:14px;
+  color:#333;
+  line-height:1.5;
+}
+
+.photo-modal-field{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  margin-bottom:14px;
+}
+
+.photo-modal-field label{
+  font-weight:700;
+  font-size:14px;
+}
+
+.photo-modal-field select{
+  border:2px solid #e5e7eb;
+  border-radius:12px;
+  padding:12px;
+  font-size:15px;
+  background:#fff;
+}
+
+.photo-modal-price{
+  margin-top:8px;
+  font-size:15px;
+  color:#cb0076;
+  font-weight:700;
+}
+
+@media (max-width: 1000px){
+  .photo-timetable{
+    grid-template-columns:1fr;
+  }
+}
+
+.photo-reservation-card{
+  border-left-color:#7c3aed;
+}
+
+.admin-photo-hour-groups{
+  display:flex;
+  flex-direction:column;
+  gap:16px;
+  margin-top:14px;
+}
+
+.admin-photo-hour-block{
+  background:#faf9fc;
+  border-radius:14px;
+  padding:14px;
+  border:1px solid #eee;
+}
+
+.admin-photo-hour-title{
+  font-weight:800;
+  color:#0F1A2F;
+  margin-bottom:10px;
+}
+
+.admin-photo-hour-list{
+  list-style:none;
+  padding:0;
+  margin:0;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+}
