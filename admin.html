@@ -44,7 +44,8 @@
   <!-- SUBNAV -->
   <div class="sub-header admin-subheader">
     <button class="tab-btn active" data-admin-tab="create">Crear activitat</button>
-    <button class="tab-btn" data-admin-tab="manage">Consultar activitats</button>
+    <button class="tab-btn" data-admin-tab="manage">Consultar Master Class</button>
+    <button class="tab-btn" data-admin-tab="photos">Consultar Fotografies d'Estudi</button>
     <button class="tab-btn" data-admin-tab="waitlist">Llistes d'espera</button>
   </div>
 
@@ -83,18 +84,29 @@
 
     <!-- ================= MANAGE VIEW ================= -->
     <section id="adminManageView" class="admin-view">
-
       <div class="admin-export-bar">
-        <button id="exportExcelBtn" class="btn excel-btn" title="Exportar reserves">
+        <button id="exportMasterExcelBtn" class="btn excel-btn" title="Exportar reserves de Master Class">
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path d="M14 2H6a2 2 0 0 0-2 2v16l4-2 4 2 4-2 4 2V8l-6-6Zm1 7V3.5L19.5 9H15Z"/>
           </svg>
-          Exportar reserves
+          Exportar Master Class
         </button>
       </div>
 
       <div id="adminActivitiesGrid" class="admin-activities-grid"></div>
+    </section>
 
+    <section id="adminPhotosView" class="admin-view">
+      <div class="admin-export-bar">
+        <button id="exportPhotoExcelBtn" class="btn excel-btn" title="Exportar reserves de fotografia">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16l4-2 4 2 4-2 4 2V8l-6-6Zm1 7V3.5L19.5 9H15Z"/>
+          </svg>
+          Exportar fotografies d'estudi
+        </button>
+      </div>
+
+      <div id="adminPhotoBookingsGrid" class="admin-activities-grid"></div>
     </section>
 
     <section id="adminWaitlistView" class="admin-view">
