@@ -498,6 +498,11 @@ async function loadParticipants() {
         const userData = userDoc.data();
         const li = document.createElement("li");
         li.textContent = `${userData.nom} ${userData.cognoms} - ${userData.escola}`;
+		const emailSpan = document.createElement("span");
+		emailSpan.className = "participant-email";
+		emailSpan.textContent = ` (${userData.email})`;
+		
+		li.appendChild(emailSpan);
         ul.appendChild(li);
       }
       div.appendChild(ul);
