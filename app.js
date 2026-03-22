@@ -498,11 +498,6 @@ async function loadParticipants() {
         const userData = userDoc.data();
         const li = document.createElement("li");
         li.textContent = `${userData.nom} ${userData.cognoms} - ${userData.escola}`;
-		const emailSpan = document.createElement("span");
-		emailSpan.className = "participant-email";
-		emailSpan.textContent = ` (${userData.email})`;
-		
-		li.appendChild(emailSpan);
         ul.appendChild(li);
       }
       div.appendChild(ul);
@@ -2420,17 +2415,19 @@ async function renderWaitlistUsers(items) {
     const u = uSnap.data();
     const nom = (u.nom || "").trim();
     const cognoms = (u.cognoms || "").trim();
+	const email = (u.email || "").trim();
 
     const dt = w.createdAt?.toDate ? w.createdAt.toDate() : new Date(w.createdAt);
     const when = isNaN(dt.getTime()) ? "-" : dt.toLocaleString("ca-ES");
 
     html += `
-      <li>
-        <strong>${(nom + " " + cognoms).trim() || "Usuari"}</strong>
-        <br>
-        <small>${when}</small>
-      </li>
-    `;
+	  <li>
+	    <strong>${(nom + " " + cognoms).trim() || "Usuari"}</strong>
+	    <span class="waitlist-email">${email}</span>
+	    <br>
+	    <small>${when}</small>
+	  </li>
+	`;
   }
 
   return html;
