@@ -2,9 +2,22 @@
 // APP VERSION CONTROL
 // ==========================
 
-const APP_VERSION = "1.0.5";
+const APP_VERSION = "1.0.6";
 
 const storedVersion = localStorage.getItem("app_version");
+
+const SYSTEM_BLOCKED = true; // <-- posa false per reobrir
+
+/**
+ * @param {string} message Missatge a mostrar
+ * @param {boolean} silent Si true, no fa toast (útil per evitar toasts en writes "interns")
+ * @returns {boolean} true si està bloquejat (i per tant s'ha d'aturar)
+ */
+function checkBlockedAction(message = "Inscripcions tancades temporalment", silent = false) {
+  if (!SYSTEM_BLOCKED) return false;
+  if (!silent) showToast(message, "error");
+  return true;
+}
 
 if (storedVersion && storedVersion !== APP_VERSION) {
   localStorage.setItem("app_version", APP_VERSION);
@@ -383,10 +396,13 @@ if (createBtn) {
       return;
     }
 
+    if (checkBlockedAction()) return;
+
     try {
 
   if (editingActivityId) {
 
+    if (checkBlockedAction()) return;
     await updateDoc(doc(db, "activities", editingActivityId), {
       lloc,
       date: new Date(data),
@@ -403,6 +419,8 @@ if (createBtn) {
     document.querySelector('[data-admin-tab="manage"]').click();
 
   } else {
+
+    if (checkBlockedAction()) return;
 
     await addDoc(collection(db, "activities"), {
       type: "master",
@@ -477,6 +495,7 @@ async function loadParticipants() {
 
     // Quan es canvia, actualitzem Firestore
     visibleCheckbox.addEventListener("change", async () => {
+      if (checkBlockedAction()) return;
       await updateDoc(doc(db, "activities", activityId), {
         visible: visibleCheckbox.checked
       });
@@ -558,6 +577,10 @@ async function loadActivities() {
     `;
 
     const button = div.querySelector("button");
+    if (SYSTEM_BLOCKED) {
+      button.disabled = true;
+      button.textContent = "Tancat";
+    }
     if (data.spots_remaining <= 0) {
       button.disabled = true;
       button.textContent = "No queden places";
@@ -650,6 +673,9 @@ async function getPhotoGlobalSettings() {
   const snap = await getDoc(ref);
 
   if (!snap.exists()) {
+    // Si el sistema està bloquejat, NO creem documents.
+    if (checkBlockedAction("", true)) return { isOpen: false };
+
     await setDoc(ref, { isOpen: true });
     return { isOpen: true };
   }
@@ -707,6 +733,7 @@ async function updatePriceHeader() {
 }
 
 async function ensurePhotoTimeSlotsSeeded() {
+  if (checkBlockedAction("", true)) return;
   const existingSnap = await getDocs(collection(db, "photoTimeSlots"));
   if (!existingSnap.empty) return;
 
@@ -715,6 +742,8 @@ async function ensurePhotoTimeSlotsSeeded() {
       const time = minutesToTime(t);
       const hourStart = Math.floor(t / 60) * 60;
       const hourLabel = minutesToTime(hourStart);
+
+      if (checkBlockedAction()) return;
 
       await addDoc(collection(db, "photoTimeSlots"), {
         dateKey: day.key,
@@ -734,10 +763,9 @@ async function ensurePhotoTimeSlotsSeeded() {
 
 async function reserve(activityId) {
   const user = auth.currentUser;
-  if (!user) {
-    alert("Fes login primer!");
-    return false;
-  }
+  if (!user) { alert("Fes login primer!"); return false; }
+
+  if (checkBlockedAction()) return false;
 
   const activityRef = doc(db, "activities", activityId);
 
@@ -882,6 +910,10 @@ async function loadMyReservations() {
     `;
 
     const cancelBtn = card.querySelector(".cancel-btn");
+    if (SYSTEM_BLOCKED) {
+      cancelBtn.disabled = true;
+      cancelBtn.textContent = "Cancel·lacions tancades";
+    }
     const payBtn = card.querySelector(".payment-btn");
     if (payBtn) {
       const paymentRef = resData.paymentRef || "-";
@@ -966,6 +998,10 @@ async function loadMyReservations() {
   `;
 
   const cancelPhotoBtn = photoCard.querySelector(".cancel-photo-btn");
+  if (SYSTEM_BLOCKED) {
+    cancelPhotoBtn.disabled = true;
+    cancelPhotoBtn.textContent = "Cancel·lacions tancades";
+  }
   cancelPhotoBtn.addEventListener("click", async () => {
     cancelPhotoBtn.disabled = true;
     cancelPhotoBtn.textContent = "Cancel·lant...";
@@ -1062,6 +1098,8 @@ async function cancelReservation(reservationId, activityId) {
     alert("Has d'iniciar sessió.");
     return false;
   }
+
+  if (checkBlockedAction()) return false;
 
   const reservationRef = doc(db, "reservations", reservationId);
   const activityRef = doc(db, "activities", activityId);
@@ -1193,6 +1231,8 @@ async function joinWaitlist(activityId) {
     return false;
   }
 
+  if (checkBlockedAction()) return false;
+
   try {
     const waitlistRef = collection(db, "waitlist");
 
@@ -1210,6 +1250,8 @@ async function joinWaitlist(activityId) {
     const existing = snap.docs.find(d => d.data().userId === user.uid);
     if (existing) return true;
 
+    if (checkBlockedAction()) return;
+
     await addDoc(waitlistRef, {
       activityId,
       userId: user.uid,
@@ -1225,6 +1267,35 @@ async function joinWaitlist(activityId) {
     return false;
   }
 }
+
+async function leaveWaitlist(waitlistId) {
+  const user = auth.currentUser;
+  if (!user) {
+    showToast("Has d'iniciar sessió.", "error");
+    return false;
+  }
+
+  if (checkBlockedAction()) return false;
+
+  try {
+    // Opcional: validar propietari abans d'esborrar
+    const ref = doc(db, "waitlist", waitlistId);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return true;
+    if (snap.data().userId !== user.uid) {
+      showToast("No tens permisos per modificar aquesta waitlist.", "error");
+      return false;
+    }
+
+    await deleteDoc(ref);
+    return true;
+  } catch (err) {
+    console.error(err);
+    showToast("No s'ha pogut sortir de la llista d'espera.", "error");
+    return false;
+  }
+}
+
 
 async function getMyPhotoTimeBookingMap() {
   const user = auth.currentUser;
@@ -1249,6 +1320,8 @@ async function reservePhotoTimeSlot(slotId, category) {
     showToast("Has d'iniciar sessió.", "error");
     return false;
   }
+
+  if (checkBlockedAction()) return false;
 
   const photoSettings = await getPhotoGlobalSettings();
   if (photoSettings.isOpen === false) {
@@ -1279,6 +1352,8 @@ async function reservePhotoTimeSlot(slotId, category) {
       return false;
     }
 
+    if (checkBlockedAction()) return;
+
     await addDoc(collection(db, "photoTimeBookings"), {
       userId: user.uid,
       userEmail: user.email,
@@ -1300,7 +1375,9 @@ async function reservePhotoTimeSlot(slotId, category) {
 }
 
 async function cancelPhotoTimeBooking(bookingId) {
+  if (checkBlockedAction()) return false;
   try {
+    if (checkBlockedAction()) return;
     await deleteDoc(doc(db, "photoTimeBookings", bookingId));
     return true;
   } catch (err) {
@@ -1548,7 +1625,7 @@ async function loadPhotoStudioGrid() {
 
       const addBtn = card.querySelector(".photo-add-btn");
 
-      if (freeSlots.length === 0 || photoSettings.isOpen === false) {
+      if (SYSTEM_BLOCKED || freeSlots.length === 0 || photoSettings.isOpen === false) {
         addBtn.disabled = true;
       } else {
         addBtn.addEventListener("click", () => {
@@ -1673,6 +1750,16 @@ async function loadActivitiesByType(type) {
     `;
 
     const button = card.querySelector("button");
+
+    if (SYSTEM_BLOCKED) {
+      button.disabled = true;
+      button.textContent = "Inscripcions tancades";
+
+      const disciplina = data.disciplina || "Altres";
+      if (!grouped[disciplina]) grouped[disciplina] = [];
+      grouped[disciplina].push(card);
+      continue;
+    }
 
     if (!isOpen) {
       card.classList.add("activity-closed-card");
@@ -1927,6 +2014,7 @@ async function loadAdminActivities() {
         );
 
         for (const r of reservationsSnap.docs) {
+          if (checkBlockedAction()) return;
           await deleteDoc(doc(db, "reservations", r.id));
         }
 
@@ -1936,9 +2024,11 @@ async function loadAdminActivities() {
         );
 
         for (const w of waitSnap.docs) {
+          if (checkBlockedAction()) return;
           await deleteDoc(doc(db, "waitlist", w.id));
         }
 
+        if (checkBlockedAction()) return;
         // Esborrar activitat
         await deleteDoc(doc(db, "activities", activityId));
 
@@ -1960,6 +2050,10 @@ async function loadAdminActivities() {
 
     if (openCheckbox) {
       openCheckbox.addEventListener("change", async () => {
+        if (checkBlockedAction()) {
+          openCheckbox.checked = !openCheckbox.checked; // revertim UI
+          return;
+        }
         await updateDoc(doc(db, "activities", activityId), {
           isOpen: openCheckbox.checked
         });
